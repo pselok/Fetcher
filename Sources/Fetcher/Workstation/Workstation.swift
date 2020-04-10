@@ -24,6 +24,7 @@ fileprivate final class WorkstationContext {
     public func remove(worker: Worker) {
         workers[worker.remoteURL] = nil
     }
+    
 }
 
 public final class Workstation: NSObject {
@@ -51,6 +52,7 @@ public final class Workstation: NSObject {
     }
     
     public func download(from remoteURL: URL, format: Storage.Format, progress: @escaping (Result<Network.Progress, NetworkError>) -> Void) {
+        guard context.worker(with: remoteURL) == nil else { return }
         let downloadTask = session.downloadTask(with: remoteURL)
         let worker = Worker(work: .download, format: format, remoteURL: remoteURL, progress: .loading, progressBlock: progress)
         context.add(worker: worker)
