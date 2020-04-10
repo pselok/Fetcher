@@ -5,6 +5,9 @@ import PackageDescription
 
 let package = Package(
     name: "Fetcher",
+    platforms: [
+        .iOS(.v11)
+    ],
     products: [
         // Products define the executables and libraries produced by a package, and make them visible to other packages.
         .library(
@@ -16,6 +19,14 @@ let package = Package(
         .package(
             url: "https://github.com/pselok/StorageKit.git",
             .branch("master")
+        ),
+        .package(
+            url: "https://github.com/pselok/NetworkKit.git",
+            .branch("master")
+        ),
+        .package(
+            url: "https://github.com/pselok/InterfaceKit.git",
+            .branch("master")
         )
     ],
     targets: [
@@ -23,7 +34,7 @@ let package = Package(
         // Targets can depend on other targets in this package, and on products in packages which this package depends on.
         .target(
             name: "Fetcher",
-            dependencies: ["StorageKit"]),
+            dependencies: ["StorageKit", "NetworkKit", "InterfaceKit"]),
         .testTarget(
             name: "FetcherTests",
             dependencies: ["Fetcher"]),
