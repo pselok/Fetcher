@@ -22,7 +22,7 @@ extension Fetcher {
         public var loader: FetcherLoader {
             switch self {
             case .default:
-                let activity = UIActivityIndicatorView()
+                let activity = UIActivityIndicatorView(style: .whiteLarge)
                 activity.startAnimating()
                 return Fetcher.DefaultLoader(frame: .zero, activity: activity, background: UIVisualEffectView(effect: UIBlurEffect(style: .dark)))
             }
@@ -45,6 +45,7 @@ extension Fetcher {
         }
         
         private func setup() {
+            isUserInteractionEnabled = false
             backgroundColor = .clear
             background.translatesAutoresizingMaskIntoConstraints = false
             addSubview(background)
@@ -52,8 +53,8 @@ extension Fetcher {
             
             activity.translatesAutoresizingMaskIntoConstraints = false
             addSubview(activity)
-            activity.heightAnchor.constraint(equalToConstant: 50).isActive = true
-            activity.widthAnchor.constraint(equalToConstant: 50).isActive = true
+//            activity.heightAnchor.constraint(equalToConstant: 50).isActive = true
+//            activity.widthAnchor.constraint(equalToConstant: 50).isActive = true
             activity.centerXAnchor.constraint(equalTo: centerXAnchor).isActive = true
             activity.centerYAnchor.constraint(equalTo: centerYAnchor).isActive = true
             activity.transform = CGAffineTransform(scaleX: 0.5, y: 0.5)
@@ -65,18 +66,21 @@ extension Fetcher {
         }
         
         public func start() {
-            UIView.animate(withDuration: 0.25, delay: 0, usingSpringWithDamping: 0.5, initialSpringVelocity: 0.5, options: [.allowUserInteraction, .preferredFramesPerSecond60], animations: { [weak self] in
-                self?.activity.transform = .identity
-                self?.activity.alpha = 1
+            UIView.animate(withDuration: 0.5, delay: 0, usingSpringWithDamping: 0.5, initialSpringVelocity: 0.5, options: [.allowUserInteraction, .preferredFramesPerSecond60], animations: {
+                self.activity.transform = .identity
+                self.activity.alpha = 1
             }, completion: nil)
         }
         
         public func stop() {
-            UIView.animate(withDuration: 0.25, delay: 0, usingSpringWithDamping: 0.5, initialSpringVelocity: 0.5, options: [.allowUserInteraction, .preferredFramesPerSecond60], animations: { [weak self] in
-                self?.activity.transform = CGAffineTransform(scaleX: 0.5, y: 0.5)
-                self?.activity.alpha = 0
+            UIView.animate(withDuration: 0.5, delay: 0, usingSpringWithDamping: 0.5, initialSpringVelocity: 0.5, options: [.allowUserInteraction, .preferredFramesPerSecond60], animations: {
+                self.activity.transform = CGAffineTransform(scaleX: 0.5, y: 0.5)
+                self.activity.alpha = 0
+                self.background.alpha = 0
             }, completion: nil)
         }
-        
+        deinit {
+            print("LOADER DEINITIALIZED")
+        }
     }
 }

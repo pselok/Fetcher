@@ -26,7 +26,23 @@ public struct Fetcher {
                 }
             }
         } else {
-            Workstation.shared.download(from: from, format: .image, progress: progress)
+            Workstation.shared.download(from: from, format: .image) { (result) in
+                switch result {
+                case .success(let currentProgress):
+                    switch currentProgress {
+                    case .finished(let output):
+                        guard let image = UIImage(data: output.data) else {
+                            completion(.failure(.explicit(string: "Failed to convert data to UIImage")))
+                            return
+                        }
+                        completion(.success(image))
+                    default:
+                        progress(.success(currentProgress))
+                    }
+                case .failure(let error):
+                    completion(.failure(error))
+                }
+            }
         }
     }
 }
@@ -34,7 +50,7 @@ public struct Fetcher {
 extension UIImageView {
     public func fetch(image from: URL,
                       placeholder: UIImage = .image(with: #colorLiteral(red: 0.09411764706, green: 0.1450980392, blue: 0.231372549, alpha: 1)),
-                      transition: FetcherTransition = Fetcher.Transition.fade(),
+                      transition: Fetcher.Transition,
                       loader: FetcherLoader? = nil,
                       progress: @escaping (Result<Network.Progress, NetworkError>) -> Void = {_ in},
                       completion: @escaping (Result<UIImage, NetworkError>) -> Void = {_ in}) {
@@ -46,12 +62,20 @@ extension UIImageView {
             loader.start()
         }
         Fetcher.retrieve(image: from, progress: progress) { (result) in
-            switch result {
-            case .success(let image):
-                //set image with animation
-                print()
-            case .failure(let error):
-                completion(.failure(error))
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let image):
+                    UIView.transition(with: self, duration: 0.0, options: [], animations: { loader?.stop() }, completion: { _ in
+                        self.image = nil
+                        UIView.transition(with: self, duration: transition.duration, options: [transition.options, .allowUserInteraction, .preferredFramesPerSecond60], animations: {
+                            transition.animations?(self, image)
+                        }, completion: {finished in
+                            transition.completion?(finished)
+                        })
+                    })
+                case .failure(let error):
+                    completion(.failure(error))
+                }
             }
         }
     }
