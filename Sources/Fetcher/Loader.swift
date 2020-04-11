@@ -22,7 +22,8 @@ extension Fetcher {
         public var loader: FetcherLoader {
             switch self {
             case .default:
-                let activity = UIActivityIndicatorView(style: .whiteLarge)
+                let device = UIDevice.current.userInterfaceIdiom
+                let activity = UIActivityIndicatorView(style: device == .phone ? .white : .whiteLarge)
                 var style: UIBlurEffect.Style = .dark
                 if #available(iOS 13.0, *) {
                     style = .systemThinMaterialDark
