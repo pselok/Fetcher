@@ -83,7 +83,7 @@ extension Fetcher {
         
         public func stop(animated: Bool) {
             if animated {
-                UIView.animate(withDuration: 0.5, delay: 0.25, usingSpringWithDamping: 0.5, initialSpringVelocity: 0.5, options: [.allowUserInteraction, .preferredFramesPerSecond60], animations: {
+                UIView.animate(withDuration: 1.0, delay: 0.25, usingSpringWithDamping: 0.5, initialSpringVelocity: 0.5, options: [.allowUserInteraction, .preferredFramesPerSecond60], animations: {
                     self.activity.transform = CGAffineTransform(scaleX: 0.5, y: 0.5)
                     self.activity.alpha = 0
                     self.background.alpha = 0
