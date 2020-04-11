@@ -57,21 +57,23 @@ extension UIImageView {
         self.image = placeholder
         if let loader = loader {
             loader.translatesAutoresizingMaskIntoConstraints = false
-            addSubview(loader)
+            if let superview = superview {
+                superview.addSubview(loader)
+            } else {
+                addSubview(loader)
+            }
             loader.box(in: self)
-            loader.start()
+            loader.start(animated: true)
         }
         Fetcher.retrieve(image: from, progress: progress) { (result) in
             DispatchQueue.main.async {
                 switch result {
                 case .success(let image):
-                    UIView.transition(with: self, duration: 0.0, options: [], animations: { loader?.stop() }, completion: { _ in
-                        self.image = nil
-                        UIView.transition(with: self, duration: transition.duration, options: [transition.options, .allowUserInteraction, .preferredFramesPerSecond60], animations: {
-                            transition.animations?(self, image)
-                        }, completion: {finished in
-                            transition.completion?(finished)
-                        })
+                    loader?.stop(animated: true)
+                    UIView.transition(with: self, duration: transition.duration, options: [transition.options, .allowUserInteraction, .preferredFramesPerSecond60], animations: {
+                        transition.animations?(self, image)
+                    }, completion: {finished in
+                        transition.completion?(finished)
                     })
                 case .failure(let error):
                     completion(.failure(error))
