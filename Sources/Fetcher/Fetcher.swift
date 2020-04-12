@@ -16,11 +16,15 @@ public struct Fetcher {
     static func get(image from: URL,
                          progress: @escaping (Result<Network.Progress, NetworkError>) -> Void,
                          completion: @escaping (Result<UIImage, NetworkError>) -> Void) {
-        if Storage.Disk(path: from.absoluteString).exists() {
-            Storage.Disk(path: from.absoluteString).get(storable: .image, as: Storage.SKImage.self, qos: .userInteractive) { (result) in
+        if Storage.Disk.fileExists(with: from.absoluteString, format: .image) {
+            Storage.Disk.get(file: .image, name: from.absoluteString, qos: .userInteractive) { (result) in
                 switch result {
-                case .success(let image):
-                    completion(.success(image.image))
+                case .success(let file):
+                    guard let image = UIImage(data: file.data) else {
+                        completion(.failure(.explicit(string: "Failed to convert data to UIImage")))
+                        return
+                    }
+                    completion(.success(image))
                 case .failure(let error):
                     completion(.failure(.explicit(string: error.description)))
                 }

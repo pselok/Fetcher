@@ -42,7 +42,7 @@ public final class Workstation: NSObject {
 
     // MARK: - Singleton
 
-    static public let shared = Workstation()
+    public static let shared = Workstation()
 
     // MARK: - Init
 
@@ -109,17 +109,19 @@ extension Workstation: URLSessionDownloadDelegate {
             let data = try Data(contentsOf: location)
             let output = Network.Progress.Output(data: data)
             worker.progress = .finished(output: output)
-            let meta = Storage.Meta(name: worker.remoteURL.absoluteString,
-                                    extension: worker.remoteURL.pathExtension,
-                                    size: data.count,
-                                    lastAccessDate: Date(),
-                                    format: worker.format)
-            Storage.Disk(path: worker.remoteURL.absoluteString).set(storable: Storage.SKData(data: data, meta: meta))
+            let meta = File.Meta(name           : worker.remoteURL.absoluteString,
+                                 extension      : worker.remoteURL.pathExtension,
+                                 size           : UInt64(data.count),
+                                 remoteURL      : worker.remoteURL,
+                                 lastAccessDate : Date(),
+                                 format         : worker.format)
+            let file = File(data: data, meta: meta)
+            Storage.Disk.set(file: file)
         } catch {
             worker.progress = .failed(error: .data)
         }
         context.remove(worker: worker)
-        Storage.Disk.remove(file: location)
+        Storage.Disk.removeFile(at: location)
     }
     
     public func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession) {
