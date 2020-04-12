@@ -13,11 +13,11 @@ import InterfaceKit
 public struct Fetcher {
     private init() {}
     
-    static func retrieve(image from: URL,
+    static func get(image from: URL,
                          progress: @escaping (Result<Network.Progress, NetworkError>) -> Void,
                          completion: @escaping (Result<UIImage, NetworkError>) -> Void) {
         if Storage.Disk(path: from.absoluteString).exists() {
-            Storage.Disk(path: from.absoluteString).retrieve(storable: .image, as: Storage.SKImage.self, qos: .userInteractive) { (result) in
+            Storage.Disk(path: from.absoluteString).get(storable: .image, as: Storage.SKImage.self, qos: .userInteractive) { (result) in
                 switch result {
                 case .success(let image):
                     completion(.success(image.image))
@@ -65,7 +65,7 @@ extension UIImageView {
             loader.box(in: self)
             loader.start(animated: true)
         }
-        Fetcher.retrieve(image: from, progress: progress) { (result) in
+        Fetcher.get(image: from, progress: progress) { (result) in
             DispatchQueue.main.async {
                 switch result {
                 case .success(let image):

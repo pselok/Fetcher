@@ -36,7 +36,7 @@ extension Fetcher {
 }
 
 extension Fetcher {
-    open class DefaultLoader: UIView, FetcherLoader {
+    class DefaultLoader: UIView, FetcherLoader {
         
         public var activity: UIView
         public var background: UIView
@@ -57,8 +57,6 @@ extension Fetcher {
             
             activity.translatesAutoresizingMaskIntoConstraints = false
             addSubview(activity)
-//            activity.heightAnchor.constraint(equalToConstant: 50).isActive = true
-//            activity.widthAnchor.constraint(equalToConstant: 50).isActive = true
             activity.centerXAnchor.constraint(equalTo: centerXAnchor).isActive = true
             activity.centerYAnchor.constraint(equalTo: centerYAnchor).isActive = true
             activity.transform = CGAffineTransform(scaleX: 0.5, y: 0.5)
@@ -93,10 +91,6 @@ extension Fetcher {
                 activity.alpha = 0
                 background.alpha = 0
             }
-        }
-        
-        deinit {
-            print("LOADER DEINITIALIZED")
         }
     }
 }

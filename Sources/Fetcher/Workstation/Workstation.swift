@@ -5,7 +5,7 @@
 //  Created by Eduard Shugar on 05.04.2020.
 //
 
-import UIKit
+import Foundation
 import StorageKit
 import NetworkKit
 
@@ -114,27 +114,12 @@ extension Workstation: URLSessionDownloadDelegate {
                                     size: data.count,
                                     lastAccessDate: Date(),
                                     format: worker.format)
-            switch worker.format {
-            case .data:
-                Storage.Disk(path: worker.remoteURL.absoluteString).save(storable: Storage.SKData(data: data, meta: meta))
-            case .image:
-                if let image = UIImage(data: data) {
-                    Storage.Disk(path: worker.remoteURL.absoluteString).save(storable: Storage.SKImage(image: image, meta: meta))
-                } else {
-                    Storage.Disk(path: worker.remoteURL.absoluteString).save(storable: Storage.SKData(data: data, meta: meta))
-                }
-            case .video:
-                Storage.Disk(path: worker.remoteURL.absoluteString).save(storable: Storage.SKVideo(video: data, meta: meta))
-            case .audio:
-                Storage.Disk(path: worker.remoteURL.absoluteString).save(storable: Storage.SKAudio(audio: data, meta: meta))
-            case .entity:
-                Storage.Disk(path: worker.remoteURL.absoluteString).save(storable: Storage.SKEntity(entity: data, meta: meta))
-            }
+            Storage.Disk(path: worker.remoteURL.absoluteString).set(storable: Storage.SKData(data: data, meta: meta))
         } catch {
             worker.progress = .failed(error: .data)
         }
         context.remove(worker: worker)
-        Storage.Disk(path: location.absoluteString).remove()
+        Storage.Disk.remove(file: location)
     }
     
     public func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession) {
