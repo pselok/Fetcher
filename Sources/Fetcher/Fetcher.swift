@@ -20,6 +20,7 @@ public struct Fetcher {
             Storage.Disk.get(file: .image, name: from.absoluteString, qos: .userInteractive) { (result) in
                 switch result {
                 case .success(let file):
+                    print("from cache")
                     guard let image = UIImage(data: file.data) else {
                         completion(.failure(.explicit(string: "Failed to convert data to UIImage")))
                         return
@@ -39,6 +40,7 @@ public struct Fetcher {
                             completion(.failure(.explicit(string: "Failed to convert data to UIImage")))
                             return
                         }
+                        print("from network")
                         completion(.success(image))
                     default:
                         progress(.success(currentProgress))
