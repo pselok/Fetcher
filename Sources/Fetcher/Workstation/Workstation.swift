@@ -111,7 +111,7 @@ extension Workstation: URLSessionDownloadDelegate {
             worker.progress = .finished(output: output)
             let meta = File.Meta(name           : worker.remoteURL.absoluteString,
                                  extension      : worker.remoteURL.pathExtension,
-                                 size           : UInt64(data.count),
+                                 size           : .init(bytes: UInt64(data.count)),
                                  remoteURL      : worker.remoteURL,
                                  lastAccessDate : Date(),
                                  format         : worker.format)
