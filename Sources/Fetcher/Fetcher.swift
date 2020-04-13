@@ -14,9 +14,10 @@ public struct Fetcher {
     private init() {}
     
     static func get(image from: URL,
-                         progress: @escaping (Result<Network.Progress, NetworkError>) -> Void,
-                         completion: @escaping (Result<UIImage, NetworkError>) -> Void) {
-        if Storage.Disk.fileExists(with: from.absoluteString, format: .image) {
+                    configuration: Storage.Configuration,
+                    progress: @escaping (Result<Network.Progress, NetworkError>) -> Void,
+                    completion: @escaping (Result<UIImage, NetworkError>) -> Void) {
+        if Storage.Disk.fileExists(with: from.absoluteString, format: .image, configuration: configuration) {
             Storage.Disk.get(file: .image, name: from.absoluteString, qos: .userInteractive) { (result) in
                 switch result {
                 case .success(let file):
@@ -31,7 +32,7 @@ public struct Fetcher {
                 }
             }
         } else {
-            Workstation.shared.download(from: from, format: .image) { (result) in
+            Workstation.shared.download(from: from, format: .image, configuration: configuration) { (result) in
                 switch result {
                 case .success(let currentProgress):
                     switch currentProgress {
@@ -56,8 +57,9 @@ public struct Fetcher {
 extension UIImageView {
     public func fetch(image from: URL,
                       placeholder: UIImage = .image(with: #colorLiteral(red: 0.09411764706, green: 0.1450980392, blue: 0.231372549, alpha: 1)),
-                      transition: Fetcher.Transition,
+                      transition: Fetcher.Transition = .fade(duration: 0.5),
                       loader: FetcherLoader? = nil,
+                      persist: Bool = true,
                       progress: @escaping (Result<Network.Progress, NetworkError>) -> Void = {_ in},
                       completion: @escaping (Result<UIImage, NetworkError>) -> Void = {_ in}) {
         self.image = placeholder
@@ -71,7 +73,8 @@ extension UIImageView {
             loader.box(in: self)
             loader.start(animated: true)
         }
-        Fetcher.get(image: from, progress: progress) { (result) in
+        let configuration = persist ? Settings.Storage.configuration : .memory
+        Fetcher.get(image: from, configuration: configuration, progress: progress) { (result) in
             DispatchQueue.main.async {
                 switch result {
                 case .success(let image):

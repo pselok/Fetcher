@@ -16,6 +16,7 @@ public enum Work {
 public final class Worker {
     let work: Work
     let format: Storage.Format
+    let configuration: Storage.Configuration
     let remoteURL: URL
     var progress: Network.Progress {
         didSet {
@@ -31,9 +32,10 @@ public final class Worker {
     
     // MARK: - Init
     
-    init(work: Work, format: Storage.Format, remoteURL: URL, progress: Network.Progress, progressBlock: @escaping ((Result<Network.Progress, NetworkError>) -> Void)) {
+    init(work: Work, format: Storage.Format, configuration: Storage.Configuration, remoteURL: URL, progress: Network.Progress, progressBlock: @escaping ((Result<Network.Progress, NetworkError>) -> Void)) {
         self.work = work
         self.format = format
+        self.configuration = configuration
         self.remoteURL = remoteURL
         self.progress = progress
         self.progressBlock = progressBlock

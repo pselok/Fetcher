@@ -51,10 +51,10 @@ public final class Workstation: NSObject {
         session = Network.Session.background(delegate: self, identifier: identifier).session
     }
     
-    public func download(from remoteURL: URL, format: Storage.Format, progress: @escaping (Result<Network.Progress, NetworkError>) -> Void) {
+    public func download(from remoteURL: URL, format: Storage.Format, configuration: Storage.Configuration, progress: @escaping (Result<Network.Progress, NetworkError>) -> Void) {
         guard context.worker(with: remoteURL) == nil else { return }
         let downloadTask = session.downloadTask(with: remoteURL)
-        let worker = Worker(work: .download, format: format, remoteURL: remoteURL, progress: .loading, progressBlock: progress)
+        let worker = Worker(work: .download, format: format, configuration: configuration, remoteURL: remoteURL, progress: .loading, progressBlock: progress)
         context.add(worker: worker)
         downloadTask.resume()
     }
@@ -116,7 +116,7 @@ extension Workstation: URLSessionDownloadDelegate {
                                  lastAccessDate : Date(),
                                  format         : worker.format)
             let file = File(data: data, meta: meta)
-            Storage.Disk.set(file: file)
+            Storage.Disk.set(file: file, configuration: worker.configuration)
         } catch {
             worker.progress = .failed(error: .data)
         }
