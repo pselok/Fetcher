@@ -18,7 +18,7 @@ public struct Fetcher {
                     progress: @escaping (Result<Network.Progress, NetworkError>) -> Void,
                     completion: @escaping (Result<UIImage, NetworkError>) -> Void) {
         if Storage.Disk.fileExists(with: from.absoluteString, format: .image, configuration: configuration) {
-            Storage.Disk.get(file: .image, name: from.absoluteString, qos: .userInteractive) { (result) in
+            Storage.Disk.get(file: .image, name: from.absoluteString, configuration: configuration, qos: .userInteractive) { (result) in
                 switch result {
                 case .success(let file):
                     print("from cache")
@@ -59,7 +59,7 @@ extension UIImageView {
                       placeholder: UIImage = .image(with: #colorLiteral(red: 0.09411764706, green: 0.1450980392, blue: 0.231372549, alpha: 1)),
                       transition: Fetcher.Transition = .fade(duration: 0.5),
                       loader: FetcherLoader? = nil,
-                      persist: Bool = true,
+                      persist: Bool = false,
                       progress: @escaping (Result<Network.Progress, NetworkError>) -> Void = {_ in},
                       completion: @escaping (Result<UIImage, NetworkError>) -> Void = {_ in}) {
         self.image = placeholder
