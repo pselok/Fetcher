@@ -121,7 +121,7 @@ extension Workstation: URLSessionDownloadDelegate {
             worker.progress = .failed(error: .data)
         }
         context.remove(worker: worker)
-        Storage.Disk.removeFile(at: location)
+        Storage.Disk.removeData(at: location)
     }
     
     public func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession) {
