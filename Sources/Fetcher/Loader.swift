@@ -6,6 +6,7 @@
 //
 
 import UIKit
+import InterfaceKit
 
 public protocol FetcherLoader: UIView {
     var activity: UIView { get set }
@@ -22,8 +23,8 @@ extension Fetcher {
         public var loader: FetcherLoader {
             switch self {
             case .default:
-                let device = UIDevice.current.userInterfaceIdiom
-                let activity = UIActivityIndicatorView(style: device == .phone ? .white : .whiteLarge)
+                let sizeClass = Interface.Layout.SizeClass.current
+                let activity = UIActivityIndicatorView(style: sizeClass == .wRhR ? .whiteLarge : .white)
                 var style: UIBlurEffect.Style = .dark
                 if #available(iOS 13.0, *) {
                     style = .systemThinMaterialDark

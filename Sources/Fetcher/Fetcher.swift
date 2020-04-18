@@ -75,16 +75,18 @@ extension UIImageView {
         }
         let configuration = persist ? Settings.Storage.configuration : .memory
         Fetcher.get(image: from, configuration: configuration, progress: progress) { (result) in
-            DispatchQueue.main.async {
-                switch result {
-                case .success(let image):
+            switch result {
+            case .success(let image):
+                DispatchQueue.main.async {
                     loader?.stop(animated: true)
                     UIView.transition(with: self, duration: transition.duration, options: [transition.options, .allowUserInteraction, .preferredFramesPerSecond60], animations: {
                         transition.animations?(self, image)
                     }, completion: {finished in
                         transition.completion?(finished)
                     })
-                case .failure(let error):
+                }
+            case .failure(let error):
+                DispatchQueue.main.async {
                     completion(.failure(error))
                 }
             }
