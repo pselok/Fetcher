@@ -17,35 +17,37 @@ public struct Fetcher {
                     configuration: Storage.Configuration,
                     progress: @escaping (Result<Network.Progress, NetworkError>) -> Void,
                     completion: @escaping (Result<UIImage, NetworkError>) -> Void) {
-        if Storage.Disk.fileExists(with: from.absoluteString, format: .image, configuration: configuration) {
-            Storage.Disk.get(file: .image, name: from.absoluteString, configuration: configuration, qos: .userInteractive) { (result) in
-                switch result {
-                case .success(let file):
-                    guard let image = UIImage(data: file.data) else {
-                        completion(.failure(.explicit(string: "Failed to convert data to UIImage")))
-                        return
-                    }
-                    completion(.success(image))
-                case .failure(let error):
-                    completion(.failure(.explicit(string: error.description)))
-                }
-            }
-        } else {
-            Workstation.shared.download(from: from, format: .image, configuration: configuration) { (result) in
-                switch result {
-                case .success(let currentProgress):
-                    switch currentProgress {
-                    case .finished(let output):
-                        guard let image = UIImage(data: output.data) else {
+        DispatchQueue.global(qos: .userInteractive).async {
+            if Storage.Disk.fileExists(with: from.absoluteString, format: .image, configuration: configuration) {
+                Storage.Disk.get(file: .image, name: from.absoluteString, configuration: configuration) { (result) in
+                    switch result {
+                    case .success(let file):
+                        guard let image = UIImage(data: file.data) else {
                             completion(.failure(.explicit(string: "Failed to convert data to UIImage")))
                             return
                         }
                         completion(.success(image))
-                    default:
-                        progress(.success(currentProgress))
+                    case .failure(let error):
+                        completion(.failure(.explicit(string: error.description)))
                     }
-                case .failure(let error):
-                    completion(.failure(error))
+                }
+            } else {
+                Workstation.shared.download(from: from, format: .image, configuration: configuration) { (result) in
+                    switch result {
+                    case .success(let currentProgress):
+                        switch currentProgress {
+                        case .finished(let output):
+                            guard let image = UIImage(data: output.data) else {
+                                completion(.failure(.explicit(string: "Failed to convert data to UIImage")))
+                                return
+                            }
+                            completion(.success(image))
+                        default:
+                            progress(.success(currentProgress))
+                        }
+                    case .failure(let error):
+                        completion(.failure(error))
+                    }
                 }
             }
         }

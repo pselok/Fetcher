@@ -18,7 +18,11 @@ fileprivate final class WorkstationContext {
     
     //Memory could be cleared after a background session, save items via storage for further managing?
     public func add(worker: Worker) {
-        workers[worker.remoteURL] = worker
+        if let working = workers[worker.remoteURL] {
+            working.leeches.append(contentsOf: worker.leeches)
+        } else {
+            workers[worker.remoteURL] = worker
+        }
     }
     
     public func remove(worker: Worker) {
@@ -52,9 +56,8 @@ public final class Workstation: NSObject {
     }
     
     public func download(from remoteURL: URL, format: Storage.Format, configuration: Storage.Configuration, progress: @escaping (Result<Network.Progress, NetworkError>) -> Void) {
-        guard context.worker(with: remoteURL) == nil else { return }
         let downloadTask = session.downloadTask(with: remoteURL)
-        let worker = Worker(work: .download, format: format, configuration: configuration, remoteURL: remoteURL, progress: .loading, progressBlock: progress)
+        let worker = Worker(work: .download, format: format, configuration: configuration, remoteURL: remoteURL, progress: .loading, leech: progress)
         context.add(worker: worker)
         downloadTask.resume()
     }

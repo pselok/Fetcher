@@ -22,22 +22,22 @@ public final class Worker {
         didSet {
             switch progress {
             case .failed(let error):
-                progressBlock(.failure(.error(error)))
+                leeches.forEach { $0(.failure(.error(error))) }
             default:
-                progressBlock(.success(progress))
+                leeches.forEach { $0(.success(progress)) }
             }
         }
     }
-    var progressBlock: ((Result<Network.Progress, NetworkError>) -> Void)
+    var leeches: [((Result<Network.Progress, NetworkError>) -> Void)]
     
     // MARK: - Init
     
-    init(work: Work, format: Storage.Format, configuration: Storage.Configuration, remoteURL: URL, progress: Network.Progress, progressBlock: @escaping ((Result<Network.Progress, NetworkError>) -> Void)) {
+    init(work: Work, format: Storage.Format, configuration: Storage.Configuration, remoteURL: URL, progress: Network.Progress, leech: @escaping ((Result<Network.Progress, NetworkError>) -> Void)) {
         self.work = work
         self.format = format
         self.configuration = configuration
         self.remoteURL = remoteURL
         self.progress = progress
-        self.progressBlock = progressBlock
+        self.leeches = [leech]
     }
 }
