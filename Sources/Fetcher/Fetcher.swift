@@ -43,7 +43,9 @@ public struct Fetcher {
                             }
                             completion(.success(image))
                         default:
-                            progress(.success(currentProgress))
+                            DispatchQueue.main.async {
+                                progress(.success(currentProgress))
+                            }
                         }
                     case .failure(let error):
                         completion(.failure(error))
@@ -74,19 +76,22 @@ extension UIImageView {
             loader.start(animated: true)
         }
         let configuration = persist ? Settings.Storage.configuration : .memory
-        Fetcher.get(image: from, configuration: configuration, progress: progress) { (result) in
-            switch result {
-            case .success(let image):
-                DispatchQueue.main.async {
+        Fetcher.get(image: from, configuration: configuration, progress: progress) { [weak self] (result) in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let image):
+                    guard let strongSelf = self else {
+                        completion(.success(image))
+                        return
+                    }
                     loader?.stop(animated: true)
-                    UIView.transition(with: self, duration: transition.duration, options: [transition.options, .allowUserInteraction, .preferredFramesPerSecond60], animations: {
-                        transition.animations?(self, image)
-                    }, completion: {finished in
+                    UIView.transition(with: strongSelf, duration: transition.duration, options: [transition.options, .allowUserInteraction, .preferredFramesPerSecond60], animations: {
+                        transition.animations?(strongSelf, image)
+                    }, completion: { finished in
                         transition.completion?(finished)
+                        completion(.success(image))
                     })
-                }
-            case .failure(let error):
-                DispatchQueue.main.async {
+                case .failure(let error):
                     completion(.failure(error))
                 }
             }
