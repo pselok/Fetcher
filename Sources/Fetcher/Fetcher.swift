@@ -60,7 +60,7 @@ extension UIImageView {
     public func fetch(image from: URL,
                       placeholder: UIImage = .image(with: #colorLiteral(red: 0.09411764706, green: 0.1450980392, blue: 0.231372549, alpha: 1)),
                       transition: Fetcher.Transition = .fade(duration: 0.5),
-                      loader: FetcherLoader? = nil,
+                      loader: Loader? = nil,
                       persist: Bool = false,
                       progress: @escaping (Result<Network.Progress, NetworkError>) -> Void = {_ in},
                       completion: @escaping (Result<UIImage, NetworkError>) -> Void = {_ in}) {
