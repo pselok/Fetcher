@@ -58,14 +58,13 @@ public struct Fetcher {
 
 extension UIImageView {
     public func fetch(image from: URL,
-                      placeholder: UIImage = .image(with: #colorLiteral(red: 0.09411764706, green: 0.1450980392, blue: 0.231372549, alpha: 1)),
-                      transition: Fetcher.Transition = .fade(duration: 0.5),
-                      loader: Loader? = nil,
-                      persist: Bool = false,
+                      options: Fetcher.Options = [],
                       progress: @escaping (Result<Network.Progress, NetworkError>) -> Void = {_ in},
                       completion: @escaping (Result<UIImage, NetworkError>) -> Void = {_ in}) {
-        self.image = placeholder
-        if let loader = loader {
+        let options = Fetcher.Option.Parsed(options: options)
+        let configuration = options.persist ? Settings.Storage.configuration : .memory
+        self.image = options.placeholder
+        if let loader = options.loader {
             loader.translatesAutoresizingMaskIntoConstraints = false
             if let superview = superview {
                 superview.addSubview(loader)
@@ -75,16 +74,23 @@ extension UIImageView {
             loader.box(in: self)
             loader.start(animated: true)
         }
-        let configuration = persist ? Settings.Storage.configuration : .memory
         Fetcher.get(image: from, configuration: configuration, progress: progress) { [weak self] (result) in
             DispatchQueue.main.async {
                 switch result {
-                case .success(let image):
+                case .success(var image):
+                    for modifier in options.modifiers {
+                        image = modifier.modify(image: image)
+                    }
                     guard let strongSelf = self else {
                         completion(.success(image))
                         return
                     }
-                    loader?.stop(animated: true)
+                    options.loader?.stop(animated: true)
+                    guard let transition = options.transition else {
+                        strongSelf.image = image
+                        completion(.success(image))
+                        return
+                    }
                     UIView.transition(with: strongSelf, duration: transition.duration, options: [transition.options, .allowUserInteraction, .preferredFramesPerSecond60], animations: {
                         transition.animations?(strongSelf, image)
                     }, completion: { finished in
