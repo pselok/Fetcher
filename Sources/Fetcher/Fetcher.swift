@@ -78,8 +78,8 @@ extension UIImageView {
             DispatchQueue.main.async {
                 switch result {
                 case .success(var image):
-                    for modifier in options.modifiers {
-                        image = modifier.modify(image: image)
+                    options.modifiers.forEach {
+                        image = $0.modify(image: image)
                     }
                     guard let strongSelf = self else {
                         completion(.success(image))
