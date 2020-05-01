@@ -85,7 +85,9 @@ extension UIImageView {
                         completion(.success(image))
                         return
                     }
-                    options.loader?.stop(animated: true)
+                    options.loader?.stop(animated: true, completion: { (bool) in
+                        options.loader?.removeFromSuperview()
+                    })
                     guard let transition = options.transition else {
                         strongSelf.image = image
                         completion(.success(image))
