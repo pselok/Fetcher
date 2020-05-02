@@ -143,7 +143,7 @@ extension Interface.Media.ImageView {
                         return
                     }
                     UIView.transition(with: strongSelf, duration: transition.duration, options: [transition.options, .allowUserInteraction, .preferredFramesPerSecond60], animations: {
-                        transition.animations?(strongSelf.imageView.imageView, image)
+                        transition.animations?(strongSelf.media, image)
                     }, completion: { finished in
                         transition.completion?(finished)
                         strongSelf.isUserInteractionEnabled = isUserInteractionEnabled
