@@ -85,7 +85,7 @@ extension UIImageView {
                         completion(.success(image))
                         return
                     }
-                    options.loader?.stop(animated: true, completion: { (bool) in
+                    options.loader?.stop(animated: true, completion: {_ in
                         options.loader?.removeFromSuperview()
                     })
                     guard let transition = options.transition else {
@@ -107,52 +107,52 @@ extension UIImageView {
     }
 }
 
-extension Interface.Media.ImageView {
-    public func fetch(image from: URL,
-                      options: Fetcher.Options = [],
-                      progress: @escaping (Result<Network.Progress, NetworkError>) -> Void = {_ in},
-                      completion: @escaping (Result<UIImage, NetworkError>) -> Void = {_ in}) {
-        let isUserInteractionEnabled = self.isUserInteractionEnabled
-        let options = Fetcher.Option.Parsed(options: options)
-        let configuration = options.persist ? Settings.Storage.configuration : .memory
-        self.image = options.placeholder
-        if let loader = options.loader {
-            self.isUserInteractionEnabled = false
-            loader.translatesAutoresizingMaskIntoConstraints = false
-            addSubview(loader)
-            loader.box(in: media)
-            loader.start(animated: true)
-        }
-        Fetcher.get(image: from, configuration: configuration, progress: progress) { [weak self] (result) in
-            DispatchQueue.main.async {
-                switch result {
-                case .success(var image):
-                    options.modifiers.forEach {
-                        image = $0.modify(image: image)
-                    }
-                    guard let strongSelf = self else {
-                        completion(.success(image))
-                        return
-                    }
-                    options.loader?.stop(animated: true, completion: { (bool) in
-                        options.loader?.removeFromSuperview()
-                    })
-                    guard let transition = options.transition else {
-                        strongSelf.image = image
-                        completion(.success(image))
-                        return
-                    }
-                    UIView.transition(with: strongSelf, duration: transition.duration, options: [transition.options, .allowUserInteraction, .preferredFramesPerSecond60], animations: {
-                        transition.animations?(strongSelf.media, image)
-                    }, completion: { finished in
-                        transition.completion?(finished)
-                        strongSelf.isUserInteractionEnabled = isUserInteractionEnabled
-                        completion(.success(image))
-                    })
-                case .failure(let error):
-                    completion(.failure(error))
-                }
-            }
-        }
-    }
-}
+//extension Interface.Media.ImageView {
+//    public func fetch(image from: URL,
+//                      options: Fetcher.Options = [],
+//                      progress: @escaping (Result<Network.Progress, NetworkError>) -> Void = {_ in},
+//                      completion: @escaping (Result<UIImage, NetworkError>) -> Void = {_ in}) {
+//        let isUserInteractionEnabled = self.isUserInteractionEnabled
+//        let options = Fetcher.Option.Parsed(options: options)
+//        let configuration = options.persist ? Settings.Storage.configuration : .memory
+//        self.image = options.placeholder
+//        if let loader = options.loader {
+//            self.isUserInteractionEnabled = false
+//            loader.translatesAutoresizingMaskIntoConstraints = false
+//            addSubview(loader)
+//            loader.box(in: media)
+//            loader.start(animated: true)
+//        }
+//        Fetcher.get(image: from, configuration: configuration, progress: progress) { [weak self] (result) in
+//            DispatchQueue.main.async {
+//                switch result {
+//                case .success(var image):
+//                    options.modifiers.forEach {
+//                        image = $0.modify(image: image)
+//                    }
+//                    guard let strongSelf = self else {
+//                        completion(.success(image))
+//                        return
+//                    }
+//                    options.loader?.stop(animated: true, completion: { (bool) in
+//                        options.loader?.removeFromSuperview()
+//                    })
+//                    guard let transition = options.transition else {
+//                        strongSelf.image = image
+//                        completion(.success(image))
+//                        return
+//                    }
+//                    UIView.transition(with: strongSelf, duration: transition.duration, options: [transition.options, .allowUserInteraction, .preferredFramesPerSecond60], animations: {
+//                        transition.animations?(strongSelf.media, image)
+//                    }, completion: { finished in
+//                        transition.completion?(finished)
+//                        strongSelf.isUserInteractionEnabled = isUserInteractionEnabled
+//                        completion(.success(image))
+//                    })
+//                case .failure(let error):
+//                    completion(.failure(error))
+//                }
+//            }
+//        }
+//    }
+//}
