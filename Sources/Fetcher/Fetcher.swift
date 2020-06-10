@@ -97,8 +97,8 @@ extension UIImageView {
                         transition.animations?(strongSelf, image)
                     }, completion: { finished in
                         transition.completion?(finished)
-                        completion(.success(image))
                     })
+                    completion(.success(image))
                 case .failure(let error):
                     completion(.failure(error))
                 }
