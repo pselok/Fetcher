@@ -28,11 +28,11 @@ public final class Worker {
             }
         }
     }
-    var leeches: [((Result<Network.Progress, NetworkError>) -> Void)]
+    var leeches: [((Result<Network.Progress, Network.Failure>) -> Void)]
     
     // MARK: - Init
     
-    init(work: Work, format: Storage.Format, configuration: Storage.Configuration, remoteURL: URL, progress: Network.Progress, leech: @escaping ((Result<Network.Progress, NetworkError>) -> Void)) {
+    init(work: Work, format: Storage.Format, configuration: Storage.Configuration, remoteURL: URL, progress: Network.Progress, leech: @escaping ((Result<Network.Progress, Network.Failure>) -> Void)) {
         self.work = work
         self.format = format
         self.configuration = configuration

@@ -55,7 +55,7 @@ public final class Workstation: NSObject {
         session = Network.Session.background(delegate: self, identifier: identifier).session
     }
     
-    public func download(from remoteURL: URL, format: Storage.Format, configuration: Storage.Configuration, progress: @escaping (Result<Network.Progress, NetworkError>) -> Void) {
+    public func download(from remoteURL: URL, format: Storage.Format, configuration: Storage.Configuration, progress: @escaping (Result<Network.Progress, Network.Failure>) -> Void) {
         let downloadTask = session.downloadTask(with: remoteURL)
         let worker = Worker(work: .download, format: format, configuration: configuration, remoteURL: remoteURL, progress: .loading, leech: progress)
         context.add(worker: worker)
