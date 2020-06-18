@@ -16,21 +16,15 @@ public struct Fetcher {
                     configuration: Storage.Configuration,
                     progress: @escaping (Result<Network.Progress, Network.Failure>) -> Void,
                     completion: @escaping (Result<UIImage, Network.Failure>) -> Void) {
-        DispatchQueue.global(qos: .userInteractive).async {
-            if Storage.Disk.fileExists(with: from.absoluteString, format: .image, configuration: configuration) {
-                Storage.Disk.get(file: .image, name: from.absoluteString, configuration: configuration) { (result) in
-                    switch result {
-                    case .success(let file):
-                        guard let image = UIImage(data: file.data) else {
-                            completion(.failure(.explicit(string: "Failed to convert data to UIImage")))
-                            return
-                        }
-                        completion(.success(image))
-                    case .failure(let error):
-                        completion(.failure(.explicit(string: error.description)))
-                    }
+        Storage.Disk.get(file: .image, name: from.absoluteString, configuration: configuration) { (result) in
+            switch result {
+            case .success(let file):
+                guard let image = UIImage(data: file.data) else {
+                    completion(.failure(.explicit(string: "Failed to convert data to UIImage")))
+                    return
                 }
-            } else {
+                completion(.success(image))
+            case .failure:
                 Workstation.shared.download(from: from, format: .image, configuration: configuration) { (result) in
                     switch result {
                     case .success(let currentProgress):
