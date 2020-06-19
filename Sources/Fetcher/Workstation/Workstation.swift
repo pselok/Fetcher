@@ -112,14 +112,14 @@ extension Workstation: URLSessionDownloadDelegate {
             let data = try Data(contentsOf: location)
             let output = Network.Progress.Output(data: data)
             worker.progress = .finished(output: output)
-            let meta = File.Meta(name           : worker.remoteURL.absoluteString,
-                                 extension      : worker.remoteURL.pathExtension,
-                                 size           : .init(bytes: UInt64(data.count)),
-                                 localURL       : location,
-                                 remoteURL      : worker.remoteURL,
-                                 lastAccessDate : Date(),
-                                 format         : worker.format)
-            let file = File(data: data, meta: meta)
+            let meta = Storage.File.Meta(name           : worker.remoteURL.absoluteString,
+                                         extension      : worker.remoteURL.pathExtension,
+                                         size           : .init(bytes: UInt64(data.count)),
+                                         localURL       : location,
+                                         remoteURL      : worker.remoteURL,
+                                         lastAccessDate : Date(),
+                                         format         : worker.format)
+            let file = Storage.File(data: data, meta: meta)
             Storage.Disk.set(file: file, configuration: worker.configuration)
         } catch {
             worker.progress = .failed(error: .data)
