@@ -19,7 +19,7 @@ public struct Fetcher {
         Storage.Disk.get(file: .image, name: from.absoluteString, configuration: configuration) { (result) in
             switch result {
             case .success(let file):
-                guard let image = (file as? Storage.File.Image)?.image else {
+                guard let image = file.image else {
                     completion(.failure(.explicit(string: "Failed to convert data to UIImage")))
                     return
                 }
@@ -30,7 +30,7 @@ public struct Fetcher {
                     case .success(let currentProgress):
                         switch currentProgress {
                         case .finished(let output):
-                            guard let image = UIImage(data: output.data) else {
+                            guard let image = UIImage.decoded(data: output.data) else {
                                 completion(.failure(.explicit(string: "Failed to convert data to UIImage")))
                                 return
                             }
