@@ -17,7 +17,7 @@ public struct Fetcher {
                     configuration: Storage.Configuration,
                     progress: @escaping (Result<Network.Progress, Network.Failure>) -> Void,
                     completion: @escaping (Result<UIImage, Network.Failure>) -> Void) {
-        Storage.Disk.get(file: .image, name: from.absoluteString, configuration: configuration) { (result) in
+        Storage.get(file: .image, name: from.absoluteString, configuration: configuration) { (result) in
             queue.async {
                 switch result {
                 case .success(let file):
