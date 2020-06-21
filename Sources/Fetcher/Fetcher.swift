@@ -11,37 +11,42 @@ import StorageKit
 
 public struct Fetcher {
     private init() {}
+    private static let queue = DispatchQueue(label: "com.fetcher.queue", qos: .userInteractive, attributes: .concurrent)
     
     static func get(image from: URL,
                     configuration: Storage.Configuration,
                     progress: @escaping (Result<Network.Progress, Network.Failure>) -> Void,
                     completion: @escaping (Result<UIImage, Network.Failure>) -> Void) {
         Storage.Disk.get(file: .image, name: from.absoluteString, configuration: configuration) { (result) in
-            switch result {
-            case .success(let file):
-                guard let image = file.image else {
-                    completion(.failure(.explicit(string: "Failed to convert data to UIImage")))
-                    return
-                }
-                completion(.success(image))
-            case .failure:
-                Workstation.shared.download(from: from, format: .image, configuration: configuration) { (result) in
-                    switch result {
-                    case .success(let currentProgress):
-                        switch currentProgress {
-                        case .finished(let output):
-                            guard let image = UIImage.decoded(data: output.data) else {
-                                completion(.failure(.explicit(string: "Failed to convert data to UIImage")))
-                                return
-                            }
-                            completion(.success(image))
-                        default:
-                            DispatchQueue.main.async {
-                                progress(.success(currentProgress))
+            queue.async {
+                switch result {
+                case .success(let file):
+                    guard let image = file.image else {
+                        completion(.failure(.explicit(string: "Failed to convert data to UIImage")))
+                        return
+                    }
+                    completion(.success(image))
+                case .failure:
+                    Workstation.shared.download(from: from, format: .image, configuration: configuration) { (result) in
+                        queue.async {
+                            switch result {
+                            case .success(let currentProgress):
+                                switch currentProgress {
+                                case .finished(let output):
+                                    guard let image = UIImage.decoded(data: output.data) else {
+                                        completion(.failure(.explicit(string: "Failed to convert data to UIImage")))
+                                        return
+                                    }
+                                    completion(.success(image))
+                                default:
+                                    DispatchQueue.main.async {
+                                        progress(.success(currentProgress))
+                                    }
+                                }
+                            case .failure(let error):
+                                completion(.failure(error))
                             }
                         }
-                    case .failure(let error):
-                        completion(.failure(error))
                     }
                 }
             }

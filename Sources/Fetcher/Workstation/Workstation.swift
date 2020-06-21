@@ -117,7 +117,6 @@ extension Workstation: URLSessionDownloadDelegate {
                                          size           : .init(bytes: UInt64(data.count)),
                                          localURL       : location,
                                          remoteURL      : worker.remoteURL,
-                                         lastAccessDate : Date(),
                                          format         : worker.format)
             let file = Storage.File(data: data, meta: meta)
             Storage.Disk.set(file: file, configuration: worker.configuration)
