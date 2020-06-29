@@ -70,7 +70,7 @@ extension UIImageView {
                 addSubview(loader)
             }
             loader.box(in: self)
-            loader.start(animated: true)
+            loader.play()
         }
         Fetcher.get(image: from, configuration: configuration, progress: progress) { [weak self] (result) in
             DispatchQueue.main.async {
@@ -83,7 +83,7 @@ extension UIImageView {
                         completion(.success(image))
                         return
                     }
-                    options.loader?.stop(animated: true, completion: {_ in
+                    options.loader?.stop(completion: {_ in
                         options.loader?.removeFromSuperview()
                     })
                     guard let transition = options.transition else {
