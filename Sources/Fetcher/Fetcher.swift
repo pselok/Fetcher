@@ -56,7 +56,7 @@ public struct Fetcher {
 
 extension UIImageView {
     public func fetch(image from: URL,
-                      options: Fetcher.Options = [],
+                      options: Fetcher.Options = [.transition(.fade(duration: 0.5))],
                       progress: @escaping (Result<Network.Progress, Network.Failure>) -> Void = {_ in},
                       completion: @escaping (Result<UIImage, Network.Failure>) -> Void = {_ in}) {
         let options = Fetcher.Option.Parsed(options: options)
