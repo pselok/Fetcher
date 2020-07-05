@@ -22,9 +22,9 @@ public final class Worker {
         didSet {
             switch progress {
             case .failed(let error):
-                leeches.forEach { $0(.failure(.error(error))) }
+                leeches.forEach {$0(.failure(.error(error)))}
             default:
-                leeches.forEach { $0(.success(progress)) }
+                leeches.forEach {$0(.success(progress))}
             }
         }
     }

@@ -32,7 +32,6 @@ fileprivate final class WorkstationContext {
 }
 
 public final class Workstation: NSObject {
-    
     private var identifier = "background.download.session"
     private var session: URLSession!
         
