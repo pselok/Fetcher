@@ -28,7 +28,7 @@ extension Fetcher {
         public var options: UIView.AnimationOptions {
             switch self {
             case .fade:
-                return .transitionCrossDissolve
+                return [.transitionCrossDissolve, .allowUserInteraction, .preferredFramesPerSecond60]
             }
         }
         

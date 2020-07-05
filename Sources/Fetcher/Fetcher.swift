@@ -91,7 +91,7 @@ extension UIImageView {
                         completion(.success(image))
                         return
                     }
-                    UIView.transition(with: strongSelf, duration: transition.duration, options: [transition.options, .allowUserInteraction, .preferredFramesPerSecond60], animations: {
+                    UIView.transition(with: strongSelf, duration: transition.duration, options: [transition.options], animations: {
                         transition.animations?(strongSelf, image)
                     }, completion: { finished in
                         transition.completion?(finished)
