@@ -71,23 +71,33 @@ public struct Fetcher {
 
 extension UIImageView {
     public func fetch(image from: URL,
-                      options: Fetcher.Options = [.transition(.fade(duration: 0.5))],
+                  options: Fetcher.Options = [.transition(.fade(duration: 0.5))],
+                  progress: @escaping (Result<Network.Progress, Network.Failure>) -> Void = {_ in},
+                  completion: @escaping (Result<UIImage, Network.Failure>) -> Void = {_ in}) {
+        Fetcher.Wrapper(source: self).fetch(image: from, options: options, progress: progress, completion: completion)
+    }
+}
+
+extension Fetcher.Wrapper where Source: UIImageView {
+    public func fetch(image from: URL,
+                      options: Fetcher.Options,
                       progress: @escaping (Result<Network.Progress, Network.Failure>) -> Void = {_ in},
                       completion: @escaping (Result<UIImage, Network.Failure>) -> Void = {_ in}) {
+        print("fetching from: \(from), with recognizer: \(recognizer)")
         let options = Fetcher.Option.Parsed(options: options)
         let configuration = options.persist ? Settings.Storage.configuration : .memory
-        self.image = options.placeholder
+        source.image = options.placeholder
         if let loader = options.loader {
             loader.translatesAutoresizingMaskIntoConstraints = false
-            if let superview = superview {
+            if let superview = source.superview {
                 superview.addSubview(loader)
             } else {
-                addSubview(loader)
+                source.addSubview(loader)
             }
-            loader.box(in: self)
+            loader.box(in: source)
             loader.play()
         }
-        Fetcher.get(image: from, configuration: configuration, progress: progress) { [weak self] (result) in
+        Fetcher.get(image: from, configuration: configuration, progress: progress) { [weak source] (result) in
             DispatchQueue.main.async {
                 switch result {
                 case .success(let resource):
@@ -95,7 +105,7 @@ extension UIImageView {
                     options.modifiers.forEach {
                         image = $0.modify(image: image)
                     }
-                    guard let strongSelf = self else {
+                    guard let strongSelf = source else {
                         completion(.success(image))
                         return
                     }
@@ -119,4 +129,40 @@ extension UIImageView {
             }
         }
     }
+}
+
+private var recognizerKey: Void?
+extension Fetcher {
+    public struct Wrapper<Source> {
+        public let source: Source
+        public private(set) var recognizer: UUID? {
+            get {
+                let box: Box<UUID>? = getAssociatedObject(source, &recognizerKey)
+                return box?.value
+            }
+            set {
+                let box = newValue.map { Box($0) }
+                setRetainedAssociatedObject(source, &recognizerKey, box)
+            }
+        }
+        public init(source: Source) {
+            self.source = source
+            guard recognizer == nil else { return }
+            self.recognizer = UUID()
+        }
+        private class Box<T> {
+            var value: T
+            init(_ value: T) {
+                self.value = value
+            }
+        }
+    }
+}
+
+fileprivate func getAssociatedObject<T>(_ object: Any, _ key: UnsafeRawPointer) -> T? {
+    return objc_getAssociatedObject(object, key) as? T
+}
+
+fileprivate func setRetainedAssociatedObject<T>(_ object: Any, _ key: UnsafeRawPointer, _ value: T) {
+    objc_setAssociatedObject(object, key, value, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
 }
