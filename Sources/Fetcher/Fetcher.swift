@@ -9,6 +9,21 @@ import UIKit
 import NetworkKit
 import StorageKit
 
+fileprivate protocol Resource {
+    var provider: Fetcher.Provider { get }
+}
+
+extension Fetcher {
+    public struct Image: Resource {
+        public let image: UIImage
+        public let provider: Provider
+    }
+    public enum Provider: Equatable {
+        case storage(provider: Storage.Output.Provider)
+        case network
+    }
+}
+
 public struct Fetcher {
     private init() {}
     private static let queue = DispatchQueue(label: "com.fetcher.queue", qos: .userInteractive, attributes: .concurrent)
@@ -16,16 +31,16 @@ public struct Fetcher {
     static func get(image from: URL,
                     configuration: Storage.Configuration,
                     progress: @escaping (Result<Network.Progress, Network.Failure>) -> Void,
-                    completion: @escaping (Result<UIImage, Network.Failure>) -> Void) {
+                    completion: @escaping (Result<Image, Network.Failure>) -> Void) {
         Storage.get(file: .image, name: from.absoluteString, configuration: configuration) { (result) in
             queue.async {
                 switch result {
-                case .success(let file):
-                    guard let image = file.image else {
+                case .success(let output):
+                    guard let image = output.file.image else {
                         completion(.failure(.explicit(string: "Failed to convert data to UIImage")))
                         return
                     }
-                    completion(.success(image))
+                    completion(.success(Image(image: image, provider: .storage(provider: output.provider))))
                 case .failure:
                     Workstation.shared.download(from: from, format: .image, configuration: configuration) { (result) in
                         queue.async {
@@ -37,7 +52,7 @@ public struct Fetcher {
                                         completion(.failure(.explicit(string: "Failed to convert data to UIImage")))
                                         return
                                     }
-                                    completion(.success(image))
+                                    completion(.success(Image(image: image, provider: .network)))
                                 default:
                                     DispatchQueue.main.async {
                                         progress(.success(currentProgress))
@@ -75,7 +90,8 @@ extension UIImageView {
         Fetcher.get(image: from, configuration: configuration, progress: progress) { [weak self] (result) in
             DispatchQueue.main.async {
                 switch result {
-                case .success(var image):
+                case .success(let resource):
+                    var image = resource.image
                     options.modifiers.forEach {
                         image = $0.modify(image: image)
                     }
@@ -86,7 +102,7 @@ extension UIImageView {
                     options.loader?.stop(completion: {_ in
                         options.loader?.removeFromSuperview()
                     })
-                    guard let transition = options.transition else {
+                    guard let transition = options.transition, resource.provider != .storage(provider: .memory) else {
                         strongSelf.image = image
                         completion(.success(image))
                         return
