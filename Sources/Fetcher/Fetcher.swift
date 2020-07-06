@@ -42,7 +42,7 @@ public struct Fetcher {
                     }
                     completion(.success(Image(image: image, provider: .storage(provider: output.provider))))
                 case .failure:
-                    Workstation.shared.download(from: from, format: .image, configuration: configuration) { (result) in
+                    Workstation.shared.fetch(file: from, format: .image, configuration: configuration) { (result) in
                         queue.async {
                             switch result {
                             case .success(let currentProgress):

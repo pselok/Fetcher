@@ -11,24 +11,29 @@ import NetworkKit
 
 fileprivate final class WorkstationContext {
     private(set) var workers: [URL: Worker] = [:]
+    private let lock = NSLock()
     
     public func worker(with url: URL) -> Worker? {
+        lock.lock(); defer { lock.unlock() }
         return workers[url]
     }
     
     //Memory could be cleared after a background session, save items via storage for further managing?
-    public func add(worker: Worker) {
+    public func add(worker: Worker) -> Bool {
+        lock.lock(); defer { lock.unlock() }
         if let working = workers[worker.remoteURL] {
             working.leeches.append(contentsOf: worker.leeches)
+            return false
         } else {
             workers[worker.remoteURL] = worker
+            return true
         }
     }
     
     public func remove(worker: Worker) {
+        lock.lock(); defer { lock.unlock() }
         workers[worker.remoteURL] = nil
     }
-    
 }
 
 public final class Workstation: NSObject {
@@ -54,11 +59,9 @@ public final class Workstation: NSObject {
         session = Network.Session.background(delegate: self, identifier: identifier).session
     }
     
-    public func download(from remoteURL: URL, format: Storage.Format, configuration: Storage.Configuration, progress: @escaping (Result<Network.Progress, Network.Failure>) -> Void) {
-        let downloadTask = session.downloadTask(with: remoteURL)
-        let worker = Worker(work: .download, format: format, configuration: configuration, remoteURL: remoteURL, progress: .loading, leech: progress)
-        context.add(worker: worker)
-        downloadTask.resume()
+    public func fetch(file url: URL, format: Storage.Format, configuration: Storage.Configuration, progress: @escaping (Result<Network.Progress, Network.Failure>) -> Void) {
+        guard context.add(worker: Worker(work: .download, format: format, configuration: configuration, remoteURL: url, progress: .loading, leech: progress)) else { return }
+        session.downloadTask(with: url).resume()
     }
     
     public func toggle(worker: Worker, completion: @escaping (Network.Progress) -> Void) {
@@ -100,11 +103,9 @@ public final class Workstation: NSObject {
             }
         }
     }
-    
 }
 
 extension Workstation: URLSessionDownloadDelegate {
-    
     public func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
         guard let originalRequestURL = downloadTask.originalRequest?.url, let worker = context.worker(with: originalRequestURL) else { return }
         do {
@@ -147,5 +148,4 @@ extension Workstation: URLSessionDownloadDelegate {
         guard let originalRequestURL = task.originalRequest?.url, let worker = context.worker(with: originalRequestURL) else { return }
         worker.progress = .uploading(progress: task.progress.fractionCompleted)
     }
-    
 }
