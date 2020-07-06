@@ -28,7 +28,7 @@ public struct Fetcher {
     private init() {}
     private static let queue = DispatchQueue(label: "com.fetcher.queue", qos: .userInteractive, attributes: .concurrent)
     
-    static func get(image from: URL,
+    static func fetch(image from: URL,
                     configuration: Storage.Configuration,
                     progress: @escaping (Result<Network.Progress, Network.Failure>) -> Void,
                     completion: @escaping (Result<Image, Network.Failure>) -> Void) {
@@ -83,7 +83,6 @@ extension Fetcher.Wrapper where Source: UIImageView {
                       options: Fetcher.Options,
                       progress: @escaping (Result<Network.Progress, Network.Failure>) -> Void = {_ in},
                       completion: @escaping (Result<UIImage, Network.Failure>) -> Void = {_ in}) {
-        print("fetching from: \(from), with recognizer: \(recognizer)")
         let options = Fetcher.Option.Parsed(options: options)
         let configuration = options.persist ? Settings.Storage.configuration : .memory
         source.image = options.placeholder
@@ -97,7 +96,8 @@ extension Fetcher.Wrapper where Source: UIImageView {
             loader.box(in: source)
             loader.play()
         }
-        Fetcher.get(image: from, configuration: configuration, progress: progress) { [weak source] (result) in
+        print("requested: \(from), recognizer: \(recognizer!)\n")
+        Fetcher.fetch(image: from, configuration: configuration, progress: progress) { [weak source] (result) in
             DispatchQueue.main.async {
                 switch result {
                 case .success(let resource):
@@ -124,6 +124,9 @@ extension Fetcher.Wrapper where Source: UIImageView {
                     })
                     completion(.success(image))
                 case .failure(let error):
+                    options.loader?.stop(completion: {_ in
+                        options.loader?.removeFromSuperview()
+                    })
                     completion(.failure(error))
                 }
             }
@@ -141,7 +144,7 @@ extension Fetcher {
                 return box?.value
             }
             set {
-                let box = newValue.map { Box($0) }
+                let box = newValue.map {Box($0)}
                 setRetainedAssociatedObject(source, &recognizerKey, box)
             }
         }

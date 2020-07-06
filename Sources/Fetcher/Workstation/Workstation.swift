@@ -9,58 +9,54 @@ import Foundation
 import StorageKit
 import NetworkKit
 
-fileprivate final class WorkstationContext {
-    private(set) var workers: [URL: Worker] = [:]
-    private let lock = NSLock()
-    
-    public func worker(with url: URL) -> Worker? {
-        lock.lock(); defer { lock.unlock() }
-        return workers[url]
-    }
-    
-    //Memory could be cleared after a background session, save items via storage for further managing?
-    public func add(worker: Worker) -> Bool {
-        lock.lock(); defer { lock.unlock() }
-        if let working = workers[worker.remoteURL] {
-            working.leeches.append(contentsOf: worker.leeches)
-            return false
-        } else {
-            workers[worker.remoteURL] = worker
-            return true
+extension Workstation {
+    public class Context {
+        private(set) var workers: [URL: [Worker]] = [:]
+        private let lock = NSLock()
+        
+        public func workers(with url: URL) -> [Worker]? {
+            lock.lock(); defer { lock.unlock() }
+            return workers[url]
         }
-    }
-    
-    public func remove(worker: Worker) {
-        lock.lock(); defer { lock.unlock() }
-        workers[worker.remoteURL] = nil
+        
+        //Memory could be cleared after a background session, save items via storage for further managing?
+        public func add(worker: Worker) -> Bool {
+            lock.lock(); defer { lock.unlock() }
+            guard let _ = workers(with: worker.remoteURL) else { return true }
+            
+            workers[worker.remoteURL]?.append(worker)
+        }
+        
+        public func remove(worker: Worker) {
+            lock.lock(); defer { lock.unlock() }
+            workers[worker.remoteURL]?.removeAll(where: {$0.recognizer == worker.recognizer})
+        }
     }
 }
 
-public final class Workstation: NSObject {
+public class Workstation: NSObject {
     private var identifier = "background.download.session"
     private var session: URLSession!
         
-    private let context = WorkstationContext()
+    private let context = Context()
     
     public var backgroundCompletion: (() -> Void)?
     
-    public var workers: [Worker] {
-        return Array(context.workers.values)
+    public var workers: [URL: [Worker]] {
+        return context.workers
     }
 
     // MARK: - Singleton
-
     public static let shared = Workstation()
 
     // MARK: - Init
-
     private override init() {
         super.init()
         session = Network.Session.background(delegate: self, identifier: identifier).session
     }
     
-    public func fetch(file url: URL, format: Storage.Format, configuration: Storage.Configuration, progress: @escaping (Result<Network.Progress, Network.Failure>) -> Void) {
-        guard context.add(worker: Worker(work: .download, format: format, configuration: configuration, remoteURL: url, progress: .loading, leech: progress)) else { return }
+    public func fetch(file url: URL, format: Storage.Format, configuration: Storage.Configuration, recognizer: UUID, progress: @escaping (Result<Network.Progress, Network.Failure>) -> Void) {
+        guard context.add(worker: Worker(work: .download, format: format, configuration: configuration, remoteURL: url, progress: .loading, recognizer: recognizer, leech: progress)) else { return }
         session.downloadTask(with: url).resume()
     }
     
@@ -107,7 +103,7 @@ public final class Workstation: NSObject {
 
 extension Workstation: URLSessionDownloadDelegate {
     public func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
-        guard let originalRequestURL = downloadTask.originalRequest?.url, let worker = context.worker(with: originalRequestURL) else { return }
+        guard let url = downloadTask.originalRequest?.url, let workers = context.workers(with: url) else { return }
         do {
             let data = try Data(contentsOf: location)
             let output = Network.Progress.Output(data: data)
@@ -135,17 +131,17 @@ extension Workstation: URLSessionDownloadDelegate {
     }
     
     public func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didResumeAtOffset fileOffset: Int64, expectedTotalBytes: Int64) {
-        guard let originalRequestURL = downloadTask.originalRequest?.url, let downloadItem = context.worker(with: originalRequestURL) else { return }
-        downloadItem.progress = .downloading(progress: downloadTask.progress.fractionCompleted)
+        guard let url = downloadTask.originalRequest?.url else { return }
+        context.workers(with: originalRequestURL).forEach{$0.progress = .downloading(progress: downloadTask.progress.fractionCompleted)}
     }
         
     public func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
-        guard let originalRequestURL = downloadTask.originalRequest?.url, let worker = context.worker(with: originalRequestURL) else { return }
-        worker.progress = .downloading(progress: downloadTask.progress.fractionCompleted)
+        guard let url = downloadTask.originalRequest?.url else { return }
+        context.workers(with: originalRequestURL).forEach{$0.progress = .downloading(progress: downloadTask.progress.fractionCompleted)}
     }
     
     public func urlSession(_ session: URLSession, task: URLSessionTask, didSendBodyData bytesSent: Int64, totalBytesSent: Int64, totalBytesExpectedToSend: Int64) {
-        guard let originalRequestURL = task.originalRequest?.url, let worker = context.worker(with: originalRequestURL) else { return }
-        worker.progress = .uploading(progress: task.progress.fractionCompleted)
+        guard let url = task.originalRequest?.url, let worker = context.worker(with: originalRequestURL) else { return }
+        context.workers(with: originalRequestURL).forEach{$0.progress = .uploading(progress: task.progress.fractionCompleted)}
     }
 }
