@@ -38,19 +38,19 @@ extension Workstation {
             leeches.append(progress)
         }
         
-        public static func == (lhs: Worker, rhs: Worker) -> Bool {
+        public static func ==(lhs: Worker, rhs: Worker) -> Bool {
             return lhs.remoteURL == rhs.remoteURL && lhs.work == rhs.work && lhs.configuration == rhs.configuration && lhs.recognizer == rhs.recognizer
         }
         
         // MARK: - Init
-        init(work: Work, format: Storage.Format, configuration: Storage.Configuration, remoteURL: URL, progress: Network.Progress, recognizer: UUID, leech: @escaping ((Result<Network.Progress, Network.Failure>) -> Void)) {
+        init(work: Work, format: Storage.Format, configuration: Storage.Configuration, remoteURL: URL, progress: Network.Progress, recognizer: UUID, leeches: [((Result<Network.Progress, Network.Failure>) -> Void)]) {
             self.work = work
             self.format = format
             self.configuration = configuration
             self.remoteURL = remoteURL
             self.progress = progress
             self.recognizer = recognizer
-            self.leeches = [leech]
+            self.leeches = leeches
         }
     }
 }

@@ -11,30 +11,33 @@ import NetworkKit
 
 extension Workstation {
     public class Context {
-        private(set) var workers: [URL: [Worker]] = [:]
+        private(set) var workers: [UUID: Worker] = [:]
         private let lock = NSLock()
         
         public func workers(with url: URL) -> [Worker]? {
-            lock.lock(); defer { lock.unlock() }
-            return workers[url]
+            return workers.values.filter{$0.remoteURL == url}
         }
         
         //Memory could be cleared after a background session, save items via storage for further managing?
         public func add(worker: Worker) -> Bool {
             lock.lock(); defer { lock.unlock() }
-            guard let working = workers(with: worker.remoteURL) else { return true }
-            working.filter({$0.recognizer == worker.recognizer}).forEach{$0.progress = .cancelled}
-            workers[worker.remoteURL]?.append(worker)
+            guard let _ = workers(with: worker.remoteURL) else {
+                workers[worker.recognizer] = worker
+                return true
+            }
+            workers[worker.recognizer]?.progress = .cancelled
+            workers[worker.recognizer] = worker
+            return false
         }
         
         public func remove(worker: Worker) {
             lock.lock(); defer { lock.unlock() }
-            workers[worker.remoteURL]?.removeAll(where: {$0.recognizer == worker.recognizer})
+            workers.removeValue(forKey: worker.recognizer)
         }
         
         public func remove(with url: URL) {
             lock.lock(); defer { lock.unlock() }
-            workers.removeValue(forKey: url)
+            workers.values.filter{$0.remoteURL == url}.forEach{workers.removeValue(forKey: $0.recognizer)}
         }
     }
 }
@@ -47,7 +50,7 @@ public class Workstation: NSObject {
     
     public var backgroundCompletion: (() -> Void)?
     
-    public var workers: [URL: [Worker]] {
+    public var workers: [UUID: Worker] {
         return context.workers
     }
 
@@ -61,7 +64,7 @@ public class Workstation: NSObject {
     }
     
     public func fetch(file url: URL, format: Storage.Format, configuration: Storage.Configuration, recognizer: UUID, progress: @escaping (Result<Network.Progress, Network.Failure>) -> Void) {
-        guard context.add(worker: Worker(work: .download, format: format, configuration: configuration, remoteURL: url, progress: .loading, recognizer: recognizer, leech: progress)) else { return }
+        guard context.add(worker: Worker(work: .download, format: format, configuration: configuration, remoteURL: url, progress: .loading, recognizer: recognizer, leeches: [progress])) else { return }
         session.downloadTask(with: url).resume()
     }
     
@@ -105,31 +108,31 @@ public class Workstation: NSObject {
         }
     }
     
-    private func average(from workers: [Worker]) -> Worker {
-        
+    private func average(from workers: [Worker]) -> Worker? {
+        guard let first = workers.first else { return nil }
+        return Worker(work: first.work, format: first.format, configuration: workers.compactMap{$0.configuration}.sorted(by: {$0 > $1})[0], remoteURL: first.remoteURL, progress: first.progress, recognizer: first.recognizer, leeches: workers.flatMap{$0.leeches})
     }
 }
 
 extension Workstation: URLSessionDownloadDelegate {
     public func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
-        guard let url = downloadTask.originalRequest?.url, let workers = context.workers(with: url) else { return }
+        guard let url = downloadTask.originalRequest?.url, let workers = context.workers(with: url), let worker = average(from: workers) else {Storage.removeData(at: location); return}
+        context.remove(with: url)
         do {
-            let average = average(from: workers)
             let data = try Data(contentsOf: location)
             let output = Network.Progress.Output(data: data)
             workers.forEach{$0.progress = .finished(output: output)}
-            let meta = Storage.File.Meta(name           : average.remoteURL.absoluteString,
-                                         extension      : average.remoteURL.pathExtension,
+            let meta = Storage.File.Meta(name           : worker.remoteURL.absoluteString,
+                                         extension      : worker.remoteURL.pathExtension,
                                          size           : .init(bytes: UInt64(data.count)),
                                          localURL       : location,
-                                         remoteURL      : average.remoteURL,
-                                         format         : average.format)
+                                         remoteURL      : worker.remoteURL,
+                                         format         : worker.format)
             let file = Storage.File(data: data, meta: meta)
-            Storage.set(file: file, configuration: average.configuration)
+            Storage.set(file: file, configuration: worker.configuration)
         } catch {
-            worker.progress = .failed(error: .data)
+            workers.forEach{$0.progress = .failed(error: .data)}
         }
-        context.remove(with: url)
         Storage.removeData(at: location)
     }
     

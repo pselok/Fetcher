@@ -30,6 +30,7 @@ public struct Fetcher {
     
     static func fetch(image from: URL,
                     configuration: Storage.Configuration,
+                    recognizer: UUID,
                     progress: @escaping (Result<Network.Progress, Network.Failure>) -> Void,
                     completion: @escaping (Result<Image, Network.Failure>) -> Void) {
         Storage.get(file: .image, name: from.absoluteString, configuration: configuration) { (result) in
@@ -42,7 +43,7 @@ public struct Fetcher {
                     }
                     completion(.success(Image(image: image, provider: .storage(provider: output.provider))))
                 case .failure:
-                    Workstation.shared.fetch(file: from, format: .image, configuration: configuration) { (result) in
+                    Workstation.shared.fetch(file: from, format: .image, configuration: configuration, recognizer: recognizer) { (result) in
                         queue.async {
                             switch result {
                             case .success(let currentProgress):
@@ -96,8 +97,8 @@ extension Fetcher.Wrapper where Source: UIImageView {
             loader.box(in: source)
             loader.play()
         }
-        print("requested: \(from), recognizer: \(recognizer!)\n")
-        Fetcher.fetch(image: from, configuration: configuration, progress: progress) { [weak source] (result) in
+        print("requested: \(from), recognizer: \(recognizer)\n")
+        Fetcher.fetch(image: from, configuration: configuration, recognizer: recognizer, progress: progress) { [weak source] (result) in
             DispatchQueue.main.async {
                 switch result {
                 case .success(let resource):
@@ -138,20 +139,16 @@ private var recognizerKey: Void?
 extension Fetcher {
     public struct Wrapper<Source> {
         public let source: Source
-        public private(set) var recognizer: UUID? {
+        public var recognizer: UUID {
             get {
-                let box: Box<UUID>? = getAssociatedObject(source, &recognizerKey)
-                return box?.value
-            }
-            set {
-                let box = newValue.map {Box($0)}
-                setRetainedAssociatedObject(source, &recognizerKey, box)
+                guard let box: Box<UUID> = getAssociatedObject(source, &recognizerKey) else {
+                    return setRetainedAssociatedObject(source, &recognizerKey, Box(UUID())).value
+                }
+                return box.value
             }
         }
         public init(source: Source) {
             self.source = source
-            guard recognizer == nil else { return }
-            self.recognizer = UUID()
         }
         private class Box<T> {
             var value: T
@@ -166,6 +163,8 @@ fileprivate func getAssociatedObject<T>(_ object: Any, _ key: UnsafeRawPointer) 
     return objc_getAssociatedObject(object, key) as? T
 }
 
-fileprivate func setRetainedAssociatedObject<T>(_ object: Any, _ key: UnsafeRawPointer, _ value: T) {
+@discardableResult
+fileprivate func setRetainedAssociatedObject<T>(_ object: Any, _ key: UnsafeRawPointer, _ value: T) -> T {
     objc_setAssociatedObject(object, key, value, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+    return value
 }
