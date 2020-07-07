@@ -22,14 +22,19 @@ extension Workstation {
         //Memory could be cleared after a background session, save items via storage for further managing?
         public func add(worker: Worker) -> Bool {
             lock.lock(); defer { lock.unlock() }
-            guard let _ = workers(with: worker.remoteURL) else { return true }
-            
+            guard let working = workers(with: worker.remoteURL) else { return true }
+            working.filter({$0.recognizer == worker.recognizer}).forEach{$0.progress = .cancelled}
             workers[worker.remoteURL]?.append(worker)
         }
         
         public func remove(worker: Worker) {
             lock.lock(); defer { lock.unlock() }
             workers[worker.remoteURL]?.removeAll(where: {$0.recognizer == worker.recognizer})
+        }
+        
+        public func remove(with url: URL) {
+            lock.lock(); defer { lock.unlock() }
+            workers.removeValue(forKey: url)
         }
     }
 }
@@ -99,27 +104,32 @@ public class Workstation: NSObject {
             }
         }
     }
+    
+    private func average(from workers: [Worker]) -> Worker {
+        
+    }
 }
 
 extension Workstation: URLSessionDownloadDelegate {
     public func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
         guard let url = downloadTask.originalRequest?.url, let workers = context.workers(with: url) else { return }
         do {
+            let average = average(from: workers)
             let data = try Data(contentsOf: location)
             let output = Network.Progress.Output(data: data)
-            worker.progress = .finished(output: output)
-            let meta = Storage.File.Meta(name           : worker.remoteURL.absoluteString,
-                                         extension      : worker.remoteURL.pathExtension,
+            workers.forEach{$0.progress = .finished(output: output)}
+            let meta = Storage.File.Meta(name           : average.remoteURL.absoluteString,
+                                         extension      : average.remoteURL.pathExtension,
                                          size           : .init(bytes: UInt64(data.count)),
                                          localURL       : location,
-                                         remoteURL      : worker.remoteURL,
-                                         format         : worker.format)
+                                         remoteURL      : average.remoteURL,
+                                         format         : average.format)
             let file = Storage.File(data: data, meta: meta)
-            Storage.set(file: file, configuration: worker.configuration)
+            Storage.set(file: file, configuration: average.configuration)
         } catch {
             worker.progress = .failed(error: .data)
         }
-        context.remove(worker: worker)
+        context.remove(with: url)
         Storage.removeData(at: location)
     }
     
@@ -131,17 +141,17 @@ extension Workstation: URLSessionDownloadDelegate {
     }
     
     public func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didResumeAtOffset fileOffset: Int64, expectedTotalBytes: Int64) {
-        guard let url = downloadTask.originalRequest?.url else { return }
-        context.workers(with: originalRequestURL).forEach{$0.progress = .downloading(progress: downloadTask.progress.fractionCompleted)}
+        guard let url = downloadTask.originalRequest?.url, let workers = context.workers(with: url) else { return }
+        workers.forEach{$0.progress = .downloading(progress: downloadTask.progress.fractionCompleted)}
     }
         
     public func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
-        guard let url = downloadTask.originalRequest?.url else { return }
-        context.workers(with: originalRequestURL).forEach{$0.progress = .downloading(progress: downloadTask.progress.fractionCompleted)}
+        guard let url = downloadTask.originalRequest?.url, let workers = context.workers(with: url) else { return }
+        workers.forEach{$0.progress = .downloading(progress: downloadTask.progress.fractionCompleted)}
     }
     
     public func urlSession(_ session: URLSession, task: URLSessionTask, didSendBodyData bytesSent: Int64, totalBytesSent: Int64, totalBytesExpectedToSend: Int64) {
-        guard let url = task.originalRequest?.url, let worker = context.worker(with: originalRequestURL) else { return }
-        context.workers(with: originalRequestURL).forEach{$0.progress = .uploading(progress: task.progress.fractionCompleted)}
+        guard let url = task.originalRequest?.url, let workers = context.workers(with: url) else { return }
+        workers.forEach{$0.progress = .uploading(progress: task.progress.fractionCompleted)}
     }
 }
