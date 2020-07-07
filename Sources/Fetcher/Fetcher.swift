@@ -10,12 +10,14 @@ import NetworkKit
 import StorageKit
 
 fileprivate protocol Resource {
+    var recognizer: UUID { get }
     var provider: Fetcher.Provider { get }
 }
 
 extension Fetcher {
     public struct Image: Resource {
         public let image: UIImage
+        public let recognizer: UUID
         public let provider: Provider
     }
     public enum Provider: Equatable {
@@ -31,8 +33,8 @@ public struct Fetcher {
     static func fetch(image from: URL,
                     configuration: Storage.Configuration,
                     recognizer: UUID,
-                    progress: @escaping (Result<Network.Progress, Network.Failure>) -> Void,
-                    completion: @escaping (Result<Image, Network.Failure>) -> Void) {
+                    progress: @escaping (Result<Network.Progress, Fetcher.Failure>) -> Void,
+                    completion: @escaping (Result<Image, Fetcher.Failure>) -> Void) {
         Storage.get(file: .image, name: from.absoluteString, configuration: configuration) { (result) in
             queue.async {
                 switch result {
@@ -41,22 +43,26 @@ public struct Fetcher {
                         completion(.failure(.explicit(string: "Failed to convert data to UIImage")))
                         return
                     }
-                    completion(.success(Image(image: image, provider: .storage(provider: output.provider))))
+                    completion(.success(Image(image: image, recognizer: recognizer, provider: .storage(provider: output.provider))))
                 case .failure:
                     Workstation.shared.fetch(file: from, format: .image, configuration: configuration, recognizer: recognizer) { (result) in
                         queue.async {
                             switch result {
-                            case .success(let currentProgress):
-                                switch currentProgress {
+                            case .success(let result):
+                                switch result.progress {
                                 case .finished(let output):
                                     guard let image = UIImage.decoded(data: output.data) else {
                                         completion(.failure(.explicit(string: "Failed to convert data to UIImage")))
                                         return
                                     }
-                                    completion(.success(Image(image: image, provider: .network)))
+                                    completion(.success(Image(image: image, recognizer: result.recognizer, provider: .network)))
+                                case .cancelled:
+                                    completion(.failure(.cancelled))
+                                case .failed(let error):
+                                    completion(.failure(.error(error)))
                                 default:
                                     DispatchQueue.main.async {
-                                        progress(.success(currentProgress))
+                                        progress(.success(result.progress))
                                     }
                                 }
                             case .failure(let error):
@@ -73,8 +79,8 @@ public struct Fetcher {
 extension UIImageView {
     public func fetch(image from: URL,
                   options: Fetcher.Options = [.transition(.fade(duration: 0.5))],
-                  progress: @escaping (Result<Network.Progress, Network.Failure>) -> Void = {_ in},
-                  completion: @escaping (Result<UIImage, Network.Failure>) -> Void = {_ in}) {
+                  progress: @escaping (Result<Network.Progress, Fetcher.Failure>) -> Void = {_ in},
+                  completion: @escaping (Result<UIImage, Fetcher.Failure>) -> Void = {_ in}) {
         Fetcher.Wrapper(source: self).fetch(image: from, options: options, progress: progress, completion: completion)
     }
 }
@@ -82,8 +88,8 @@ extension UIImageView {
 extension Fetcher.Wrapper where Source: UIImageView {
     public func fetch(image from: URL,
                       options: Fetcher.Options,
-                      progress: @escaping (Result<Network.Progress, Network.Failure>) -> Void = {_ in},
-                      completion: @escaping (Result<UIImage, Network.Failure>) -> Void = {_ in}) {
+                      progress: @escaping (Result<Network.Progress, Fetcher.Failure>) -> Void = {_ in},
+                      completion: @escaping (Result<UIImage, Fetcher.Failure>) -> Void = {_ in}) {
         let options = Fetcher.Option.Parsed(options: options)
         let configuration = options.persist ? Settings.Storage.configuration : .memory
         source.image = options.placeholder
@@ -97,37 +103,37 @@ extension Fetcher.Wrapper where Source: UIImageView {
             loader.box(in: source)
             loader.play()
         }
-        print("requested: \(from), recognizer: \(recognizer)\n")
         Fetcher.fetch(image: from, configuration: configuration, recognizer: recognizer, progress: progress) { [weak source] (result) in
             DispatchQueue.main.async {
+                options.loader?.stop(completion: {_ in
+                    options.loader?.removeFromSuperview()
+                })
                 switch result {
                 case .success(let resource):
+                    guard resource.recognizer == self.recognizer else {
+                        completion(.failure(.outsider))
+                        return
+                    }
                     var image = resource.image
                     options.modifiers.forEach {
                         image = $0.modify(image: image)
                     }
-                    guard let strongSelf = source else {
+                    guard let source = source else {
                         completion(.success(image))
                         return
                     }
-                    options.loader?.stop(completion: {_ in
-                        options.loader?.removeFromSuperview()
-                    })
                     guard let transition = options.transition, resource.provider != .storage(provider: .memory) else {
-                        strongSelf.image = image
+                        source.image = image
                         completion(.success(image))
                         return
                     }
-                    UIView.transition(with: strongSelf, duration: transition.duration, options: [transition.options], animations: {
-                        transition.animations?(strongSelf, image)
+                    UIView.transition(with: source, duration: transition.duration, options: [transition.options], animations: {
+                        transition.animations?(source, image)
                     }, completion: { finished in
                         transition.completion?(finished)
                     })
                     completion(.success(image))
                 case .failure(let error):
-                    options.loader?.stop(completion: {_ in
-                        options.loader?.removeFromSuperview()
-                    })
                     completion(.failure(error))
                 }
             }

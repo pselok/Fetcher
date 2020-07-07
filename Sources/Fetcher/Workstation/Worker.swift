@@ -16,7 +16,7 @@ extension Workstation.Worker {
 }
 
 extension Workstation {
-    public final class Worker: Equatable {
+    public class Worker: Equatable {
         let work: Work
         let format: Storage.Format
         let configuration: Storage.Configuration
@@ -27,14 +27,14 @@ extension Workstation {
                 case .failed(let error):
                     leeches.forEach {$0(.failure(.error(error)))}
                 default:
-                    leeches.forEach {$0(.success(progress))}
+                    leeches.forEach {$0(.success(Fetcher.Output(progress: progress, recognizer: recognizer)))}
                 }
             }
         }
         var recognizer: UUID
-        var leeches: [((Result<Network.Progress, Network.Failure>) -> Void)]
+        var leeches: [((Result<Fetcher.Output, Fetcher.Failure>) -> Void)]
         
-        public func track(progress: @escaping ((Result<Network.Progress, Network.Failure>) -> Void)) {
+        public func track(progress: @escaping ((Result<Fetcher.Output, Fetcher.Failure>) -> Void)) {
             leeches.append(progress)
         }
         
@@ -43,7 +43,7 @@ extension Workstation {
         }
         
         // MARK: - Init
-        init(work: Work, format: Storage.Format, configuration: Storage.Configuration, remoteURL: URL, progress: Network.Progress, recognizer: UUID, leeches: [((Result<Network.Progress, Network.Failure>) -> Void)]) {
+        init(work: Work, format: Storage.Format, configuration: Storage.Configuration, remoteURL: URL, progress: Network.Progress, recognizer: UUID, leeches: [((Result<Fetcher.Output, Fetcher.Failure>) -> Void)]) {
             self.work = work
             self.format = format
             self.configuration = configuration

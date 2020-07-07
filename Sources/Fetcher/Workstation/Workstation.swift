@@ -63,10 +63,9 @@ public class Workstation: NSObject {
         session = Network.Session.background(delegate: self, identifier: identifier).session
     }
     
-    public func fetch(file url: URL, format: Storage.Format, configuration: Storage.Configuration, recognizer: UUID, progress: @escaping (Result<Network.Progress, Network.Failure>) -> Void) {
+    public func fetch(file url: URL, format: Storage.Format, configuration: Storage.Configuration, recognizer: UUID, progress: @escaping (Result<Fetcher.Output, Fetcher.Failure>) -> Void) {
         guard context.add(worker: Worker(work: .download, format: format, configuration: configuration, remoteURL: url, progress: .loading, recognizer: recognizer, leeches: [progress])) else { return }
         session.downloadTask(with: url).resume()
-        print("started new session")
     }
     
     public func toggle(worker: Worker, completion: @escaping (Network.Progress) -> Void) {
@@ -119,7 +118,7 @@ extension Workstation: URLSessionDownloadDelegate {
     public func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
         guard let url = downloadTask.originalRequest?.url else {Storage.removeData(at: location); return}
         let workers = context.workers(with: url)
-        guard let worker = average(from: workers) else {Storage.removeData(at: location); return}
+        guard !workers.isEmpty, let worker = average(from: workers) else {Storage.removeData(at: location); return}
         context.remove(with: url)
         do {
             let data = try Data(contentsOf: location)
