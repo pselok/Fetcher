@@ -14,20 +14,20 @@ extension Workstation {
         private(set) var workers: [UUID: Worker] = [:]
         private let lock = NSLock()
         
-        public func workers(with url: URL) -> [Worker]? {
+        public func workers(with url: URL) -> [Worker] {
             return workers.values.filter{$0.remoteURL == url}
         }
         
         //Memory could be cleared after a background session, save items via storage for further managing?
         public func add(worker: Worker) -> Bool {
             lock.lock(); defer { lock.unlock() }
-            guard let _ = workers(with: worker.remoteURL) else {
+            guard workers(with: worker.remoteURL).isEmpty else {
+                workers[worker.recognizer]?.progress = .cancelled
                 workers[worker.recognizer] = worker
-                return true
+                return false
             }
-            workers[worker.recognizer]?.progress = .cancelled
             workers[worker.recognizer] = worker
-            return false
+            return true
         }
         
         public func remove(worker: Worker) {
@@ -66,6 +66,7 @@ public class Workstation: NSObject {
     public func fetch(file url: URL, format: Storage.Format, configuration: Storage.Configuration, recognizer: UUID, progress: @escaping (Result<Network.Progress, Network.Failure>) -> Void) {
         guard context.add(worker: Worker(work: .download, format: format, configuration: configuration, remoteURL: url, progress: .loading, recognizer: recognizer, leeches: [progress])) else { return }
         session.downloadTask(with: url).resume()
+        print("started new session")
     }
     
     public func toggle(worker: Worker, completion: @escaping (Network.Progress) -> Void) {
@@ -116,7 +117,9 @@ public class Workstation: NSObject {
 
 extension Workstation: URLSessionDownloadDelegate {
     public func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
-        guard let url = downloadTask.originalRequest?.url, let workers = context.workers(with: url), let worker = average(from: workers) else {Storage.removeData(at: location); return}
+        guard let url = downloadTask.originalRequest?.url else {Storage.removeData(at: location); return}
+        let workers = context.workers(with: url)
+        guard let worker = average(from: workers) else {Storage.removeData(at: location); return}
         context.remove(with: url)
         do {
             let data = try Data(contentsOf: location)
@@ -144,17 +147,17 @@ extension Workstation: URLSessionDownloadDelegate {
     }
     
     public func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didResumeAtOffset fileOffset: Int64, expectedTotalBytes: Int64) {
-        guard let url = downloadTask.originalRequest?.url, let workers = context.workers(with: url) else { return }
-        workers.forEach{$0.progress = .downloading(progress: downloadTask.progress.fractionCompleted)}
+        guard let url = downloadTask.originalRequest?.url else { return }
+        context.workers(with: url).forEach{$0.progress = .downloading(progress: downloadTask.progress.fractionCompleted)}
     }
         
     public func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
-        guard let url = downloadTask.originalRequest?.url, let workers = context.workers(with: url) else { return }
-        workers.forEach{$0.progress = .downloading(progress: downloadTask.progress.fractionCompleted)}
+        guard let url = downloadTask.originalRequest?.url else { return }
+        context.workers(with: url).forEach{$0.progress = .downloading(progress: downloadTask.progress.fractionCompleted)}
     }
     
     public func urlSession(_ session: URLSession, task: URLSessionTask, didSendBodyData bytesSent: Int64, totalBytesSent: Int64, totalBytesExpectedToSend: Int64) {
-        guard let url = task.originalRequest?.url, let workers = context.workers(with: url) else { return }
-        workers.forEach{$0.progress = .uploading(progress: task.progress.fractionCompleted)}
+        guard let url = task.originalRequest?.url else { return }
+        context.workers(with: url).forEach{$0.progress = .uploading(progress: task.progress.fractionCompleted)}
     }
 }
