@@ -82,7 +82,7 @@ public class Workstation: NSObject {
                     worker.progress = .paused
                 default: break
                 }
-                DispatchQueue.main.async {
+                main.async {
                     completion(worker.progress)
                 }
             }
@@ -97,11 +97,11 @@ public class Workstation: NSObject {
                 task.originalRequest?.url == worker.remoteURL
             }) {
                 task.cancel()
-                DispatchQueue.main.async {
+                main.async {
                     completion(true)
                 }
             } else {
-                DispatchQueue.main.async {
+                main.async {
                     completion(false)
                 }
             }
@@ -139,7 +139,7 @@ extension Workstation: URLSessionDownloadDelegate {
     }
     
     public func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession) {
-        DispatchQueue.main.async {
+        main.async {
             self.backgroundCompletion?()
             self.backgroundCompletion = nil
         }

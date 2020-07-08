@@ -7,7 +7,11 @@
 
 import UIKit
 import NetworkKit
+import InterfaceKit
 import StorageKit
+
+internal let queue = DispatchQueue(label: "com.fetcher.queue", qos: .userInteractive, attributes: .concurrent)
+internal let main = DispatchQueue.main
 
 fileprivate protocol Resource {
     var recognizer: UUID { get }
@@ -28,7 +32,6 @@ extension Fetcher {
 
 public struct Fetcher {
     private init() {}
-    private static let queue = DispatchQueue(label: "com.fetcher.queue", qos: .userInteractive, attributes: .concurrent)
     
     static func fetch(image from: URL,
                     configuration: Storage.Configuration,
@@ -61,7 +64,7 @@ public struct Fetcher {
                                 case .failed(let error):
                                     completion(.failure(.error(error)))
                                 default:
-                                    DispatchQueue.main.async {
+                                    main.async {
                                         progress(.success(result.progress))
                                     }
                                 }
@@ -81,11 +84,13 @@ extension UIImageView {
                   options: Fetcher.Options = [.transition(.fade(duration: 0.5))],
                   progress: @escaping (Result<Network.Progress, Fetcher.Failure>) -> Void = {_ in},
                   completion: @escaping (Result<UIImage, Fetcher.Failure>) -> Void = {_ in}) {
-        Fetcher.Wrapper(source: self).fetch(image: from, options: options, progress: progress, completion: completion)
+        main.async {
+            Fetcher.Wrapper(source: self).fetch(image: from, options: options, progress: progress, completion: completion)
+        }
     }
 }
 
-extension Fetcher.Wrapper where Source: UIImageView {
+extension Fetcher.Wrapper where Source: UIImageView {    
     public func fetch(image from: URL,
                       options: Fetcher.Options,
                       progress: @escaping (Result<Network.Progress, Fetcher.Failure>) -> Void = {_ in},
@@ -93,18 +98,24 @@ extension Fetcher.Wrapper where Source: UIImageView {
         let options = Fetcher.Option.Parsed(options: options)
         let configuration = options.persist ? Settings.Storage.configuration : .memory
         source.image = options.placeholder
-        if let loader = options.loader {
-            loader.translatesAutoresizingMaskIntoConstraints = false
-            if let superview = source.superview {
-                superview.addSubview(loader)
-            } else {
-                source.addSubview(loader)
-            }
-            loader.box(in: source)
-            loader.play()
-        }
+//        source.subviews.compactMap{$0 as? Loader}.filter{$0.frame == source.frame}.forEach{$0.removeFromSuperview()}
+//        source.superview?.subviews.compactMap{$0 as? Loader}.filter{$0.frame == source.frame}.forEach{$0.removeFromSuperview()}
+//        if let loader = options.loader {
+//            loader.translatesAutoresizingMaskIntoConstraints = false
+//            if let superview = source.superview {
+//                superview.addSubview(loader)
+//            } else {
+//                source.addSubview(loader)
+//            }
+//            loader.box(in: source)
+//            loader.play()
+//        }
+//        let timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { (timer) in
+//            print(self.recognizer)
+//        }
         Fetcher.fetch(image: from, configuration: configuration, recognizer: recognizer, progress: progress) { [weak source] (result) in
-            DispatchQueue.main.async {
+            main.async {
+//                timer.invalidate()
                 options.loader?.stop(completion: {_ in
                     options.loader?.removeFromSuperview()
                 })
