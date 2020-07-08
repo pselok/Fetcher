@@ -90,7 +90,7 @@ extension UIImageView {
     }
 }
 
-extension Fetcher.Wrapper where Source: UIImageView {    
+extension Fetcher.Wrapper where Source: UIImageView {
     public func fetch(image from: URL,
                       options: Fetcher.Options,
                       progress: @escaping (Result<Network.Progress, Fetcher.Failure>) -> Void = {_ in},
@@ -98,26 +98,12 @@ extension Fetcher.Wrapper where Source: UIImageView {
         let options = Fetcher.Option.Parsed(options: options)
         let configuration = options.persist ? Settings.Storage.configuration : .memory
         source.image = options.placeholder
-//        source.subviews.compactMap{$0 as? Loader}.filter{$0.frame == source.frame}.forEach{$0.removeFromSuperview()}
-//        source.superview?.subviews.compactMap{$0 as? Loader}.filter{$0.frame == source.frame}.forEach{$0.removeFromSuperview()}
-//        if let loader = options.loader {
-//            loader.translatesAutoresizingMaskIntoConstraints = false
-//            if let superview = source.superview {
-//                superview.addSubview(loader)
-//            } else {
-//                source.addSubview(loader)
-//            }
-//            loader.box(in: source)
-//            loader.play()
-//        }
-//        let timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { (timer) in
-//            print(self.recognizer)
-//        }
+        source.loader = options.loader
         Fetcher.fetch(image: from, configuration: configuration, recognizer: recognizer, progress: progress) { [weak source] (result) in
             main.async {
-//                timer.invalidate()
-                options.loader?.stop(completion: {_ in
-                    options.loader?.removeFromSuperview()
+                print("stopping")
+                source?.loader?.stop(completion: { _ in
+                    source?.loader = nil
                 })
                 switch result {
                 case .success(let resource):
@@ -153,6 +139,7 @@ extension Fetcher.Wrapper where Source: UIImageView {
 }
 
 private var recognizerKey: Void?
+private var indicatorKey: Void?
 extension Fetcher {
     public struct Wrapper<Source> {
         public let source: Source
@@ -167,11 +154,31 @@ extension Fetcher {
         public init(source: Source) {
             self.source = source
         }
-        private class Box<T> {
+        fileprivate class Box<T> {
             var value: T
             init(_ value: T) {
                 self.value = value
             }
+        }
+    }
+}
+
+extension UIImageView {
+    public var loader: Loader? {
+        get {
+            let box: Fetcher.Wrapper<UIImageView>.Box<Loader>? = getAssociatedObject(self, &indicatorKey)
+            return box?.value
+        } set {
+            loader?.removeFromSuperview()
+            print("old loader: \(loader)")
+            if let loader = newValue {
+                print("new loader: \(loader)")
+                loader.translatesAutoresizingMaskIntoConstraints = false
+                addSubview(loader)
+                loader.stretch(on: self)
+                loader.play()
+            }
+            setRetainedAssociatedObject(self, &indicatorKey, newValue.map(Fetcher.Wrapper<UIImageView>.Box.init))
         }
     }
 }
