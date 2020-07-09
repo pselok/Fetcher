@@ -101,10 +101,6 @@ extension Fetcher.Wrapper where Source: UIImageView {
         source.loader = options.loader
         Fetcher.fetch(image: from, configuration: configuration, recognizer: recognizer, progress: progress) { [weak source] (result) in
             main.async {
-                print("stopping")
-                source?.loader?.stop(completion: { _ in
-                    source?.loader = nil
-                })
                 switch result {
                 case .success(let resource):
                     guard resource.recognizer == self.recognizer else {
@@ -119,6 +115,9 @@ extension Fetcher.Wrapper where Source: UIImageView {
                         completion(.success(image))
                         return
                     }
+                    source.loader?.stop(completion: { _ in
+                        source.loader = nil
+                    })
                     guard let transition = options.transition, resource.provider != .storage(provider: .memory) else {
                         source.image = image
                         completion(.success(image))
@@ -170,11 +169,15 @@ extension UIImageView {
             return box?.value
         } set {
             loader?.removeFromSuperview()
-            print("old loader: \(loader)")
+//            print("old loader: \(loader)")
             if let loader = newValue {
-                print("new loader: \(loader)")
+//                print("new loader: \(loader)")
                 loader.translatesAutoresizingMaskIntoConstraints = false
-                addSubview(loader)
+                if let superview = superview {
+                    superview.addSubview(loader)
+                } else {
+                    addSubview(loader)
+                }
                 loader.stretch(on: self)
                 loader.play()
             }
