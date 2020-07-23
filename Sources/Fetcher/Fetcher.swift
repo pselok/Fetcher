@@ -97,7 +97,7 @@ extension Fetcher.Wrapper where Source: UIImageView {
                       completion: @escaping (Result<UIImage, Fetcher.Failure>) -> Void = {_ in}) {
         let options = Fetcher.Option.Parsed(options: options)
         let configuration = options.persist ? Settings.Storage.configuration : .memory
-        source.image = options.placeholder
+        source.image = options.placeholder ?? source.image
         source.loader = options.loader
         Fetcher.fetch(image: from, configuration: configuration, recognizer: recognizer, progress: progress) { [weak source] (result) in
             main.async {
