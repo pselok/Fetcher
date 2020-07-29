@@ -95,15 +95,18 @@ extension Fetcher.Wrapper where Source: UIImageView {
                       options: Fetcher.Options,
                       progress: @escaping (Result<Network.Progress, Fetcher.Failure>) -> Void = {_ in},
                       completion: @escaping (Result<UIImage, Fetcher.Failure>) -> Void = {_ in}) {
+        var _self = self
+        _self.recognizer = UUID()
         let options = Fetcher.Option.Parsed(options: options)
         let configuration = options.persist ? Settings.Storage.configuration : .memory
         source.image = options.placeholder ?? source.image
         source.loader = options.loader
-        Fetcher.fetch(image: from, configuration: configuration, recognizer: recognizer, progress: progress) { [weak source] (result) in
+        Fetcher.fetch(image: from, configuration: configuration, recognizer: _self.recognizer, progress: progress) { [weak source] (result) in
             main.async {
                 switch result {
                 case .success(let resource):
-                    guard resource.recognizer == self.recognizer else {
+                    Workstation.shared.fetched(recognizer: resource.recognizer)
+                    guard resource.recognizer == _self.recognizer else {
                         completion(.failure(.outsider))
                         return
                     }
@@ -148,6 +151,8 @@ extension Fetcher {
                     return setRetainedAssociatedObject(source, &recognizerKey, Box(UUID())).value
                 }
                 return box.value
+            } set {
+                setRetainedAssociatedObject(source, &recognizerKey, Box(UUID()))
             }
         }
         public init(source: Source) {
@@ -169,9 +174,7 @@ extension UIImageView {
             return box?.value
         } set {
             loader?.removeFromSuperview()
-//            print("old loader: \(loader)")
             if let loader = newValue {
-//                print("new loader: \(loader)")
                 loader.translatesAutoresizingMaskIntoConstraints = false
                 if let superview = superview {
                     superview.addSubview(loader)

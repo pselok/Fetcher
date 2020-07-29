@@ -11,33 +11,31 @@ import NetworkKit
 
 extension Workstation {
     public class Context {
-        private(set) var workers: [UUID: Worker] = [:]
+        private(set) var workers: [Worker] = []
         private let lock = NSLock()
         
         public func workers(with url: URL) -> [Worker] {
-            return workers.values.filter{$0.remoteURL == url}
+            return workers.filter{$0.remoteURL == url}
         }
-        
         //Memory could be cleared after a background session, save items via storage for further managing?
         public func add(worker: Worker) -> Bool {
             lock.lock(); defer { lock.unlock() }
-            guard workers(with: worker.remoteURL).isEmpty else {
-                workers[worker.recognizer]?.progress = .cancelled
-                workers[worker.recognizer] = worker
-                return false
-            }
-            workers[worker.recognizer] = worker
-            return true
+            let allowed = workers(with: worker.remoteURL).isEmpty
+            workers.removeAll(where: {$0.recognizer == worker.recognizer})
+            workers.append(worker)
+            return allowed
         }
-        
         public func remove(worker: Worker) {
             lock.lock(); defer { lock.unlock() }
-            workers.removeValue(forKey: worker.recognizer)
+            workers.removeAll(where: {$0 == worker})
         }
-        
         public func remove(with url: URL) {
             lock.lock(); defer { lock.unlock() }
-            workers.values.filter{$0.remoteURL == url}.forEach{workers.removeValue(forKey: $0.recognizer)}
+            workers.removeAll(where: {$0.remoteURL == url})
+        }
+        public func deafen(with recognizer: UUID) {
+            lock.lock(); defer { lock.unlock() }
+            workers.filter({$0.recognizer == recognizer}).forEach({$0.progress = .cancelled})
         }
     }
 }
@@ -50,7 +48,7 @@ public class Workstation: NSObject {
     
     public var backgroundCompletion: (() -> Void)?
     
-    public var workers: [UUID: Worker] {
+    public var workers: [Worker] {
         return context.workers
     }
 
@@ -64,8 +62,12 @@ public class Workstation: NSObject {
     }
     
     public func fetch(file url: URL, format: Storage.Format, configuration: Storage.Configuration, recognizer: UUID, progress: @escaping (Result<Fetcher.Output, Fetcher.Failure>) -> Void) {
-        guard context.add(worker: Worker(work: .download, format: format, configuration: configuration, remoteURL: url, progress: .loading, recognizer: recognizer, leeches: [progress])) else { return }
+        guard context.add(worker: Worker(work: .download, format: format, configuration: configuration, remoteURL: url, progress: .loading, recognizer: recognizer, leech: progress)) else { return }
         session.downloadTask(with: url).resume()
+    }
+    
+    public func fetched(recognizer: UUID) {
+        context.deafen(with: recognizer)
     }
     
     public func toggle(worker: Worker, completion: @escaping (Network.Progress) -> Void) {
@@ -110,7 +112,7 @@ public class Workstation: NSObject {
     
     private func average(from workers: [Worker]) -> Worker? {
         guard let first = workers.first else { return nil }
-        return Worker(work: first.work, format: first.format, configuration: workers.compactMap{$0.configuration}.sorted(by: {$0 > $1})[0], remoteURL: first.remoteURL, progress: first.progress, recognizer: first.recognizer, leeches: workers.flatMap{$0.leeches})
+        return Worker(work: first.work, format: first.format, configuration: workers.compactMap{$0.configuration}.sorted(by: {$0 > $1})[0], remoteURL: first.remoteURL, progress: first.progress, recognizer: first.recognizer, leech: first.leech)
     }
 }
 

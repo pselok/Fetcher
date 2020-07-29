@@ -25,32 +25,28 @@ extension Workstation {
             didSet {
                 switch progress {
                 case .failed(let error):
-                    leeches.forEach {$0(.failure(.error(error)))}
+                    leech(.failure(.error(error)))
                 default:
-                    leeches.forEach {$0(.success(Fetcher.Output(progress: progress, recognizer: recognizer)))}
+                    leech(.success(Fetcher.Output(progress: progress, recognizer: recognizer)))
                 }
             }
         }
         var recognizer: UUID
-        var leeches: [((Result<Fetcher.Output, Fetcher.Failure>) -> Void)]
-        
-        public func track(progress: @escaping ((Result<Fetcher.Output, Fetcher.Failure>) -> Void)) {
-            leeches.append(progress)
-        }
+        var leech: ((Result<Fetcher.Output, Fetcher.Failure>) -> Void)
         
         public static func ==(lhs: Worker, rhs: Worker) -> Bool {
             return lhs.remoteURL == rhs.remoteURL && lhs.work == rhs.work && lhs.configuration == rhs.configuration && lhs.recognizer == rhs.recognizer
         }
         
         // MARK: - Init
-        init(work: Work, format: Storage.Format, configuration: Storage.Configuration, remoteURL: URL, progress: Network.Progress, recognizer: UUID, leeches: [((Result<Fetcher.Output, Fetcher.Failure>) -> Void)]) {
+        init(work: Work, format: Storage.Format, configuration: Storage.Configuration, remoteURL: URL, progress: Network.Progress, recognizer: UUID, leech: @escaping ((Result<Fetcher.Output, Fetcher.Failure>) -> Void)) {
             self.work = work
             self.format = format
             self.configuration = configuration
             self.remoteURL = remoteURL
             self.progress = progress
             self.recognizer = recognizer
-            self.leeches = leeches
+            self.leech = leech
         }
     }
 }

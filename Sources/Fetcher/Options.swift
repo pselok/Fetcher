@@ -6,6 +6,7 @@
 //
 
 import UIKit
+import StorageKit
 import InterfaceKit
 
 extension Fetcher {
@@ -22,7 +23,7 @@ extension Fetcher {
             var placeholder: UIImage?
             var transition: Fetcher.Transition?
             var loader: Loader?
-            var persist: Bool = false
+            var persist = Settings.Storage.configuration != .memory
             var modifiers: [Modifier] = []
             var wipe = false
             
