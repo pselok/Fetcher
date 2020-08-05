@@ -47,6 +47,7 @@ public struct Fetcher {
                         return
                     }
                     completion(.success(Image(image: image, recognizer: recognizer, provider: .storage(provider: output.provider))))
+                    return
                 case .failure:
                     Workstation.shared.fetch(file: from, format: .image, configuration: configuration, recognizer: recognizer) { (result) in
                         queue.async {
@@ -59,10 +60,13 @@ public struct Fetcher {
                                         return
                                     }
                                     completion(.success(Image(image: image, recognizer: result.recognizer, provider: .network)))
+                                    return
                                 case .cancelled:
                                     completion(.failure(.cancelled))
+                                    return
                                 case .failed(let error):
                                     completion(.failure(.error(error)))
+                                    return
                                 default:
                                     main.async {
                                         progress(.success(result.progress))
@@ -70,6 +74,7 @@ public struct Fetcher {
                                 }
                             case .failure(let error):
                                 completion(.failure(error))
+                                return
                             }
                         }
                     }
@@ -132,8 +137,10 @@ extension Fetcher.Wrapper where Source: UIImageView {
                         transition.completion?(finished)
                     })
                     completion(.success(image))
+                    return
                 case .failure(let error):
                     completion(.failure(error))
+                    return
                 }
             }
         }
