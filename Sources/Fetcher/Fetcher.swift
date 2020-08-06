@@ -89,7 +89,6 @@ extension UIImageView {
                   options: Fetcher.Options = [.transition(.fade(duration: 0.5))],
                   progress: @escaping (Result<Network.Progress, Fetcher.Failure>) -> Void = {_ in},
                   completion: @escaping (Result<UIImage, Fetcher.Failure>) -> Void = {_ in}) {
-        print("FETCH: \(from.absoluteString)")
         main.async {
             Fetcher.Wrapper(source: self).fetch(image: from, options: options, progress: progress, completion: completion)
         }
