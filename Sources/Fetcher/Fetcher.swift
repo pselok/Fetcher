@@ -100,6 +100,7 @@ extension Fetcher.Wrapper where Source: UIImageView {
                       options: Fetcher.Options,
                       progress: @escaping (Result<Network.Progress, Fetcher.Failure>) -> Void = {_ in},
                       completion: @escaping (Result<UIImage, Fetcher.Failure>) -> Void = {_ in}) {
+        print("FETCH: \(from.absoluteString)")
         var _self = self
         _self.recognizer = UUID()
         let options = Fetcher.Option.Parsed(options: options)
