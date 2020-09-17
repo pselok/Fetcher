@@ -127,7 +127,7 @@ extension Fetcher.Wrapper where Source: UIImageView {
                     source.loader?.stop(completion: { _ in
                         source.loader = nil
                     })
-                    guard let transition = options.transition, resource.provider != .storage(provider: .memory) else {
+                    guard let transition = options.transition, transition.force == false, resource.provider != .storage(provider: .memory) else {
                         source.image = image
                         completion(.success(image))
                         return

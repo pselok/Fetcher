@@ -16,12 +16,19 @@ public protocol FetcherTransition {
 
 extension Fetcher {
     public enum Transition: FetcherTransition {
-        case fade(duration: TimeInterval = 0.5)
+        case fade(duration: TimeInterval = 0.5, force: Bool = false)
         
         public var duration: TimeInterval {
             switch self {
-            case .fade(let duration):
+            case .fade(let duration, _):
                 return duration
+            }
+        }
+        
+        public var force: Bool {
+            switch self {
+            case .fade(_, let force):
+                return force
             }
         }
         
