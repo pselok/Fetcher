@@ -105,7 +105,7 @@ extension Fetcher.Wrapper where Source: UIImageView {
         _self.recognizer = UUID()
         let options = Fetcher.Option.Parsed(options: options)
         let configuration = options.persist ? Settings.Storage.configuration : .memory
-        source.image = options.placeholder ?? source.image
+        source.image = options.holdSource ? source.image : options.placeholder ?? source.image
         source.loader = options.loader
         Fetcher.fetch(image: from, configuration: configuration, recognizer: _self.recognizer, progress: progress) { [weak source] (result) in
             main.async {
@@ -127,16 +127,30 @@ extension Fetcher.Wrapper where Source: UIImageView {
                     source.loader?.stop(completion: { _ in
                         source.loader = nil
                     })
-                    guard let transition = options.transition, resource.provider != .storage(provider: .memory) else {
+                    guard let transition = options.transition else {
                         source.image = image
                         completion(.success(image))
                         return
                     }
-                    UIView.transition(with: source, duration: transition.duration, options: [transition.options], animations: {
-                        transition.animations?(source, image)
-                    }, completion: { finished in
-                        transition.completion?(finished)
-                    })
+                    let animate: Bool = {
+                        if transition.force {
+                            return true
+                        } else if resource.provider != .storage(provider: .memory) {
+                            return true
+                        } else {
+                            return false
+                        }
+                    }()
+                    switch animate {
+                    case true:
+                        UIView.transition(with: source, duration: transition.duration, options: [transition.options], animations: {
+                            transition.animations?(source, image)
+                        }, completion: { finished in
+                            transition.completion?(finished)
+                        })
+                    case false:
+                        source.image = image
+                    }
                     completion(.success(image))
                     return
                 case .failure(let error):

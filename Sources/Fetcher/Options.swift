@@ -17,7 +17,7 @@ extension Fetcher {
         case loader(Loader)
         case persist
         case modifier(Modifier)
-        case wipe
+        case holdSource
         
         internal struct Parsed {
             var placeholder: UIImage?
@@ -25,7 +25,7 @@ extension Fetcher {
             var loader: Loader?
             var persist = Settings.Storage.configuration != .memory
             var modifiers: [Modifier] = []
-            var wipe = false
+            var holdSource = false
             
             init(options: Options) {
                 for option in options {
@@ -35,7 +35,7 @@ extension Fetcher {
                     case .loader(let loader)          : self.loader = loader
                     case .persist                     : self.persist = true
                     case .modifier(let modifier)      : self.modifiers.append(modifier)
-                    case .wipe                        : self.wipe = true
+                    case .holdSource                  : self.holdSource = true
                     }
                 }
             }
