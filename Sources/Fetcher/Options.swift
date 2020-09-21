@@ -18,6 +18,7 @@ extension Fetcher {
         case persist
         case modifier(Modifier)
         case holdSource
+        case transparent
         
         internal struct Parsed {
             var placeholder: UIImage?
@@ -26,6 +27,7 @@ extension Fetcher {
             var persist = Settings.Storage.configuration != .memory
             var modifiers: [Modifier] = []
             var holdSource = false
+            var transparent = false
             
             init(options: Options) {
                 for option in options {
@@ -36,6 +38,7 @@ extension Fetcher {
                     case .persist                     : self.persist = true
                     case .modifier(let modifier)      : self.modifiers.append(modifier)
                     case .holdSource                  : self.holdSource = true
+                    case .transparent                 : self.transparent = true
                     }
                 }
             }

@@ -36,13 +36,14 @@ public struct Fetcher {
     static func fetch(image from: URL,
                     configuration: Storage.Configuration,
                     recognizer: UUID,
+                    options: Fetcher.Option.Parsed,
                     progress: @escaping (Result<Network.Progress, Fetcher.Failure>) -> Void,
                     completion: @escaping (Result<Image, Fetcher.Failure>) -> Void) {
         Storage.get(file: .image, name: from.absoluteString, configuration: configuration) { (result) in
             queue.async {
                 switch result {
                 case .success(let output):
-                    guard let image = output.file.image else {
+                    guard let image = output.file.decoded(transparent: options.transparent) else {
                         completion(.failure(.explicit(string: "Failed to convert data to UIImage")))
                         return
                     }
@@ -55,7 +56,7 @@ public struct Fetcher {
                             case .success(let result):
                                 switch result.progress {
                                 case .finished(let output):
-                                    guard let image = UIImage.decoded(data: output.data) else {
+                                    guard let image = UIImage.decoded(data: output.data, transparent: options.transparent) else {
                                         completion(.failure(.explicit(string: "Failed to convert data to UIImage")))
                                         return
                                     }
@@ -107,7 +108,7 @@ extension Fetcher.Wrapper where Source: UIImageView {
         let configuration = options.persist ? Settings.Storage.configuration : .memory
         source.image = options.holdSource ? source.image : options.placeholder ?? source.image
         source.loader = options.loader
-        Fetcher.fetch(image: from, configuration: configuration, recognizer: _self.recognizer, progress: progress) { [weak source] (result) in
+        Fetcher.fetch(image: from, configuration: configuration, recognizer: _self.recognizer, options: options, progress: progress) { [weak source] (result) in
             main.async {
                 switch result {
                 case .success(let resource):
