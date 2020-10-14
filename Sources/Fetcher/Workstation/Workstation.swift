@@ -114,6 +114,8 @@ public class Workstation: NSObject {
         guard let first = workers.first else { return nil }
         return Worker(work: first.work, format: first.format, configuration: workers.compactMap{$0.configuration}.sorted(by: {$0 > $1})[0], remoteURL: first.remoteURL, progress: first.progress, recognizer: first.recognizer, leech: first.leech)
     }
+    
+    deinit { session.invalidateAndCancel() }
 }
 
 extension Workstation: URLSessionDownloadDelegate {
@@ -146,7 +148,12 @@ extension Workstation: URLSessionDownloadDelegate {
             self.backgroundCompletion = nil
         }
     }
-    
+        
+    public func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        guard let url = task.originalRequest?.url, let error = error else { return }
+        context.workers(with: url).forEach{$0.progress = .failed(error: .error(error))}
+    }
+
     public func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didResumeAtOffset fileOffset: Int64, expectedTotalBytes: Int64) {
         guard let url = downloadTask.originalRequest?.url else { return }
         context.workers(with: url).forEach{$0.progress = .downloading(progress: downloadTask.progress.fractionCompleted)}

@@ -44,6 +44,7 @@ public struct Fetcher {
                 switch result {
                 case .success(let output):
                     guard let image = output.file.decoded(transparent: options.transparent) else {
+                        print("FETCHER STORAGE DECODING ERROR")
                         completion(.failure(.explicit(string: "Failed to convert data to UIImage")))
                         return
                     }
@@ -57,15 +58,18 @@ public struct Fetcher {
                                 switch result.progress {
                                 case .finished(let output):
                                     guard let image = UIImage.decoded(data: output.data, transparent: options.transparent) else {
+                                        print("FETCHER NETWORK DECODING ERROR")
                                         completion(.failure(.explicit(string: "Failed to convert data to UIImage")))
                                         return
                                     }
                                     completion(.success(Image(image: image, recognizer: result.recognizer, provider: .network)))
                                     return
                                 case .cancelled:
+                                    print("FETCHER CANCELLED")
                                     completion(.failure(.cancelled))
                                     return
                                 case .failed(let error):
+                                    print("FETCHER DOWNLOADING ERROR: \(error)")
                                     completion(.failure(.error(error)))
                                     return
                                 default:
@@ -74,6 +78,7 @@ public struct Fetcher {
                                     }
                                 }
                             case .failure(let error):
+                                print("FETCHER NETWORK ERROR: \(error)")
                                 completion(.failure(error))
                                 return
                             }
@@ -112,6 +117,7 @@ extension Fetcher.Wrapper where Source: UIImageView {
             main.async {
                 switch result {
                 case .success(let resource):
+                    print("FETCHED: \(from.absoluteString)")
                     Workstation.shared.fetched(recognizer: resource.recognizer)
                     guard resource.recognizer == _self.recognizer else {
                         completion(.failure(.outsider))
@@ -155,6 +161,7 @@ extension Fetcher.Wrapper where Source: UIImageView {
                     completion(.success(image))
                     return
                 case .failure(let error):
+                    print("FETCHER MAIN ERROR: \(error), FROM: \(from.absoluteString)")
                     completion(.failure(error))
                     return
                 }
