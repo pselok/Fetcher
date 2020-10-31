@@ -5,6 +5,7 @@
 //  Created by Eduard Shugar on 05.04.2020.
 //
 
+import UIKit
 import Foundation
 import StorageKit
 import NetworkKit
@@ -122,10 +123,15 @@ extension Workstation: URLSessionDownloadDelegate {
     public func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
         guard let url = downloadTask.originalRequest?.url else {Storage.removeData(at: location); return}
         let workers = context.workers(with: url)
-        guard !workers.isEmpty, let worker = average(from: workers) else {Storage.removeData(at: location); return}
+        guard !workers.isEmpty, let worker = average(from: workers) else { Storage.removeData(at: location); return }
         context.remove(with: url)
         do {
             let data = try Data(contentsOf: location)
+            if worker.format == .image {
+                guard let _ = UIImage(data: data) else {
+                    throw(Fetcher.Failure.data)
+                }
+            }
             let output = Network.Progress.Output(data: data)
             workers.forEach{$0.progress = .finished(output: output)}
             let meta = Storage.File.Meta(name           : worker.remoteURL.absoluteString,

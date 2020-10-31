@@ -44,8 +44,7 @@ public struct Fetcher {
                 switch result {
                 case .success(let output):
                     guard let image = output.file.decoded(transparent: options.transparent) else {
-                        print("FETCHER STORAGE DECODING ERROR")
-                        completion(.failure(.explicit(string: "Failed to convert data to UIImage")))
+                        completion(.failure(.explicit(string: "STORAGE Failed to convert data to UIImage")))
                         return
                     }
                     completion(.success(Image(image: image, recognizer: recognizer, provider: .storage(provider: output.provider))))
@@ -58,8 +57,7 @@ public struct Fetcher {
                                 switch result.progress {
                                 case .finished(let output):
                                     guard let image = UIImage.decoded(data: output.data, transparent: options.transparent) else {
-                                        print("FETCHER NETWORK DECODING ERROR")
-                                        completion(.failure(.explicit(string: "Failed to convert data to UIImage")))
+                                        completion(.failure(.explicit(string: "NETWORK Failed to convert data to UIImage")))
                                         return
                                     }
                                     completion(.success(Image(image: image, recognizer: result.recognizer, provider: .network)))
@@ -117,7 +115,7 @@ extension Fetcher.Wrapper where Source: UIImageView {
             main.async {
                 switch result {
                 case .success(let resource):
-                    print("FETCHED: \(from.absoluteString)")
+                    print("FETCHED: \(from.absoluteString), RESOURCE: \(resource.provider == .network ? "NETWORK" : "STORAGE")")
                     Workstation.shared.fetched(recognizer: resource.recognizer)
                     guard resource.recognizer == _self.recognizer else {
                         completion(.failure(.outsider))
