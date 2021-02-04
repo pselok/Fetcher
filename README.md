@@ -1,3 +1,3 @@
 # Fetcher
 
-A description of this package.
+Asynchronous image downloading solution
