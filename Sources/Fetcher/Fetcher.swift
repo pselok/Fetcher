@@ -47,6 +47,7 @@ public struct Fetcher {
                         completion(.failure(.explicit(string: "STORAGE Failed to convert data to UIImage")))
                         return
                     }
+                    Storage.set(file: Storage.File.Image(data: output.file.data, meta: output.file.meta, image: image), configuration: .memory)
                     completion(.success(Image(image: image, recognizer: recognizer, provider: .storage(provider: output.provider))))
                     return
                 case .failure:
