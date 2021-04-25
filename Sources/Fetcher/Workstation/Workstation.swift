@@ -12,7 +12,7 @@ import NetworkKit
 
 extension Workstation {
     public class Context {
-        private(set) var workers: [Worker] = []
+        public private(set) var workers: [Worker] = []
         private let lock = NSLock()
         
         public func workers(with url: URL) -> [Worker] {
