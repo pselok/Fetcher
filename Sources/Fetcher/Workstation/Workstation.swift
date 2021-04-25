@@ -42,7 +42,7 @@ extension Workstation {
 }
 
 public class Workstation: NSObject {
-    private let identifier = "background.download.session"
+    private let identifier = "com.fetcher.background"
     private var sessions: Sessions!
         
     private let context = Context()
