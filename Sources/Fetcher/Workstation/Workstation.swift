@@ -42,8 +42,8 @@ extension Workstation {
 }
 
 public class Workstation: NSObject {
-    private var identifier = "background.download.session"
-    private var session: URLSession!
+    private let identifier = "background.download.session"
+    private var sessions: Sessions!
         
     private let context = Context()
     
@@ -59,56 +59,65 @@ public class Workstation: NSObject {
     // MARK: - Init
     private override init() {
         super.init()
-        session = Network.Session.background(delegate: self, identifier: identifier).session
+        sessions = Sessions(foreground: Network.Session.ephemeral(delegate: self).session, background: Network.Session.background(delegate: self, identifier: identifier).session)
     }
     
-    public func fetch(file url: URL, format: Storage.Format, configuration: Storage.Configuration, recognizer: UUID, progress: @escaping (Result<Fetcher.Output, Fetcher.Failure>) -> Void) {
-        guard context.add(worker: Worker(work: .download, format: format, configuration: configuration, remoteURL: url, progress: .loading, recognizer: recognizer, leech: progress)) else { return }
-        session.downloadTask(with: url).resume()
+    public func perform(work: Worker.Work, format: Storage.Format, configuration: Storage.Configuration, recognizer: UUID, progress: @escaping (Result<Fetcher.Output, Fetcher.Failure>) -> Void) {
+        guard context.add(worker: Worker(work: work, format: format, configuration: configuration, remoteURL: work.url, progress: .loading, recognizer: recognizer, leech: progress)) else { return }
+        switch work {
+        case .download(let url, let session):
+            sessions.session(for: session).downloadTask(with: url).resume()
+        case .upload(let data, let url, let session):
+            sessions.session(for: session).uploadTask(with: URLRequest(url: url), from: data).resume()
+        }
     }
-    
+        
     public func fetched(recognizer: UUID) {
         context.deafen(with: recognizer)
     }
     
     public func toggle(worker: Worker, completion: @escaping (Network.Progress) -> Void) {
-        session.getAllTasks { (tasks) in
-            if let task = tasks.first(where: { (task) -> Bool in
-                task.originalRequest?.url == worker.remoteURL
-            }) {
-                switch worker.progress {
-                case .paused:
-                    task.resume()
-                    worker.progress = .downloading(progress: task.progress.fractionCompleted)
-                case .downloading:
-                    task.suspend()
-                    worker.progress = .paused
-                default: break
-                }
-                main.async {
-                    completion(worker.progress)
+        sessions.all.forEach({
+            $0.getAllTasks { (tasks) in
+                if let task = tasks.first(where: { (task) -> Bool in
+                    task.originalRequest?.url == worker.remoteURL
+                }) {
+                    switch worker.progress {
+                    case .paused:
+                        task.resume()
+                        worker.progress = .downloading(progress: task.progress.fractionCompleted)
+                    case .downloading:
+                        task.suspend()
+                        worker.progress = .paused
+                    default: break
+                    }
+                    main.async {
+                        completion(worker.progress)
+                    }
                 }
             }
-        }
+        })
     }
     
     public func cancel(worker: Worker, completely: Bool = true, completion: @escaping (Bool) -> Void) {
         worker.progress = .cancelled
         context.remove(worker: worker)
-        session.getAllTasks { (tasks) in
-            if let task = tasks.first(where: { (task) -> Bool in
-                task.originalRequest?.url == worker.remoteURL
-            }) {
-                task.cancel()
-                main.async {
-                    completion(true)
-                }
-            } else {
-                main.async {
-                    completion(false)
+        sessions.all.forEach({
+            $0.getAllTasks { (tasks) in
+                if let task = tasks.first(where: { (task) -> Bool in
+                    task.originalRequest?.url == worker.remoteURL
+                }) {
+                    task.cancel()
+                    main.async {
+                        completion(true)
+                    }
+                } else {
+                    main.async {
+                        completion(false)
+                    }
                 }
             }
-        }
+        })
     }
     
     private func average(from workers: [Worker]) -> Worker? {
@@ -116,7 +125,7 @@ public class Workstation: NSObject {
         return Worker(work: first.work, format: first.format, configuration: workers.compactMap{$0.configuration}.sorted(by: {$0 > $1})[0], remoteURL: first.remoteURL, progress: first.progress, recognizer: first.recognizer, leech: first.leech)
     }
     
-    deinit { session.invalidateAndCancel() }
+        deinit {sessions.all.forEach({$0.invalidateAndCancel()})}
 }
 
 extension Workstation: URLSessionDownloadDelegate {

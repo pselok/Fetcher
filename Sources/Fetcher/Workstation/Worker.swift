@@ -11,7 +11,17 @@ import NetworkKit
 
 extension Workstation.Worker {
     public enum Work: Equatable {
-        case download, upload
+        case download(file: URL, session: Workstation.Session)
+        case upload(data: Data, url: URL, session: Workstation.Session)
+        
+        public var url: URL {
+            switch self {
+            case .download(let url, _):
+                return url
+            case .upload(_, let url, _):
+                return url
+            }
+        }
     }
 }
 

@@ -27,6 +27,17 @@ extension Fetcher {
     public enum Provider: Equatable {
         case storage(provider: Storage.Output.Provider)
         case network
+        
+        public var description: String {
+            switch self {
+            case .network: return "NETWORK"
+            case .storage(let provider):
+                switch provider {
+                case .disk  : return "DISK"
+                case .memory: return "MEMORY"
+                }
+            }
+        }
     }
 }
 
@@ -51,7 +62,7 @@ public struct Fetcher {
                     completion(.success(Image(image: image, recognizer: recognizer, provider: .storage(provider: output.provider))))
                     return
                 case .failure:
-                    Workstation.shared.fetch(file: from, format: .image, configuration: configuration, recognizer: recognizer) { (result) in
+                    Workstation.shared.perform(work: .download(file: from, session: .foreground), format: .image, configuration: configuration, recognizer: recognizer) { (result) in
                         queue.async {
                             switch result {
                             case .success(let result):
@@ -114,9 +125,12 @@ extension Fetcher.Wrapper where Source: UIImageView {
         source.loader = options.loader
         Fetcher.fetch(image: from, configuration: configuration, recognizer: _self.recognizer, options: options, progress: progress) { [weak source] (result) in
             main.async {
+                source?.loader?.stop(completion: { _ in
+                    source?.loader = nil
+                })
                 switch result {
                 case .success(let resource):
-                    print("FETCHED: \(from.absoluteString), RESOURCE: \(resource.provider == .network ? "NETWORK" : "STORAGE")")
+                    print("FETCHED: \(from.absoluteString), RESOURCE: \(resource.provider.description)")
                     Workstation.shared.fetched(recognizer: resource.recognizer)
                     guard resource.recognizer == _self.recognizer else {
                         completion(.failure(.outsider))
@@ -130,9 +144,6 @@ extension Fetcher.Wrapper where Source: UIImageView {
                         completion(.success(image))
                         return
                     }
-                    source.loader?.stop(completion: { _ in
-                        source.loader = nil
-                    })
                     guard let transition = options.transition else {
                         source.image = image
                         completion(.success(image))
