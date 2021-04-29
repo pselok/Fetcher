@@ -208,7 +208,7 @@ extension Fetcher {
 }
 
 extension UIImageView {
-    public var loader: Loader? {
+    internal var loader: Loader? {
         get {
             let box: Fetcher.Wrapper<UIImageView>.Box<Loader>? = getAssociatedObject(self, &indicatorKey)
             return box?.value
