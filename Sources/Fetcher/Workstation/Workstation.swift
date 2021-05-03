@@ -59,7 +59,7 @@ public class Workstation: NSObject {
     // MARK: - Init
     private override init() {
         super.init()
-        sessions = Sessions(foreground: Network.Session.ephemeral(delegate: self).session, background: Network.Session.background(delegate: self, identifier: identifier).session)
+        sessions = Sessions(foreground: Network.Session.foreground(cache: .none, delegate: self).session, background: Network.Session.background(delegate: self, identifier: identifier).session)
     }
     
     public func perform(work: Worker.Work, format: Storage.Format, configuration: Storage.Configuration, recognizer: UUID, progress: @escaping (Result<Fetcher.Output, Fetcher.Failure>) -> Void) {
