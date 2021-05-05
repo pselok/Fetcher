@@ -75,11 +75,9 @@ public struct Fetcher {
                                     completion(.success(Image(image: image, recognizer: result.recognizer, provider: .network)))
                                     return
                                 case .cancelled:
-                                    print("FETCHER CANCELLED")
                                     completion(.failure(.cancelled))
                                     return
                                 case .failed(let error):
-                                    print("FETCHER DOWNLOADING ERROR: \(error)")
                                     completion(.failure(.error(error)))
                                     return
                                 default:
@@ -88,7 +86,6 @@ public struct Fetcher {
                                     }
                                 }
                             case .failure(let error):
-                                print("FETCHER NETWORK ERROR: \(error)")
                                 completion(.failure(error))
                                 return
                             }
@@ -116,7 +113,6 @@ extension Fetcher.Wrapper where Source: UIImageView {
                       options: Fetcher.Options,
                       progress: @escaping (Result<Network.Progress, Fetcher.Failure>) -> Void = {_ in},
                       completion: @escaping (Result<UIImage, Fetcher.Failure>) -> Void = {_ in}) {
-        print("FETCH: \(from.absoluteString)")
         var _self = self
         _self.recognizer = UUID()
         let options = Fetcher.Option.Parsed(options: options)
@@ -130,7 +126,6 @@ extension Fetcher.Wrapper where Source: UIImageView {
                 })
                 switch result {
                 case .success(let resource):
-                    print("FETCHED: \(from.absoluteString), RESOURCE: \(resource.provider.description)")
                     Workstation.shared.fetched(recognizer: resource.recognizer)
                     guard resource.recognizer == _self.recognizer else {
                         completion(.failure(.outsider))
@@ -171,7 +166,6 @@ extension Fetcher.Wrapper where Source: UIImageView {
                     completion(.success(image))
                     return
                 case .failure(let error):
-                    print("FETCHER MAIN ERROR: \(error), FROM: \(from.absoluteString)")
                     completion(.failure(error))
                     return
                 }
