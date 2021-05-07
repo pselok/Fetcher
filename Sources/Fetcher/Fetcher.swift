@@ -6,9 +6,10 @@
 //
 
 import UIKit
+import CoreKit
+import StorageKit
 import NetworkKit
 import InterfaceKit
-import StorageKit
 
 internal let queue = DispatchQueue(label: "com.fetcher.queue", qos: .userInteractive, attributes: .concurrent)
 internal let main = DispatchQueue.main
@@ -113,6 +114,7 @@ extension Fetcher.Wrapper where Source: UIImageView {
                       options: Fetcher.Options,
                       progress: @escaping (Result<Network.Progress, Fetcher.Failure>) -> Void = {_ in},
                       completion: @escaping (Result<UIImage, Fetcher.Failure>) -> Void = {_ in}) {
+        log(event: "FETCH: \(from.absoluteString)")
         var _self = self
         _self.recognizer = UUID()
         let options = Fetcher.Option.Parsed(options: options)
@@ -126,6 +128,7 @@ extension Fetcher.Wrapper where Source: UIImageView {
                 })
                 switch result {
                 case .success(let resource):
+                    log(event: "FETCHED: \(from.absoluteString), RESOURCE: \(resource.provider.description)")
                     Workstation.shared.fetched(recognizer: resource.recognizer)
                     guard resource.recognizer == _self.recognizer else {
                         completion(.failure(.outsider))
@@ -166,6 +169,7 @@ extension Fetcher.Wrapper where Source: UIImageView {
                     completion(.success(image))
                     return
                 case .failure(let error):
+                    log(event: ("FETCHER MAIN ERROR: \(error.description), FROM: \(from.absoluteString)"))
                     completion(.failure(error))
                     return
                 }
