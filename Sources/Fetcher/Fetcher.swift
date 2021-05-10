@@ -114,7 +114,7 @@ extension Fetcher.Wrapper where Source: UIImageView {
                       options: Fetcher.Options,
                       progress: @escaping (Result<Network.Progress, Fetcher.Failure>) -> Void = {_ in},
                       completion: @escaping (Result<UIImage, Fetcher.Failure>) -> Void = {_ in}) {
-        log(event: "FETCH: \(from.absoluteString)")
+        log(event: "FETCH: \(from.absoluteString)", source: .fetcher)
         var _self = self
         _self.recognizer = UUID()
         let options = Fetcher.Option.Parsed(options: options)
@@ -128,7 +128,7 @@ extension Fetcher.Wrapper where Source: UIImageView {
                 })
                 switch result {
                 case .success(let resource):
-                    log(event: "FETCHED: \(from.absoluteString), RESOURCE: \(resource.provider.description)")
+                    log(event: "FETCHED: \(from.absoluteString), RESOURCE: \(resource.provider.description)", source: .fetcher)
                     Workstation.shared.fetched(recognizer: resource.recognizer)
                     guard resource.recognizer == _self.recognizer else {
                         completion(.failure(.outsider))
@@ -169,7 +169,7 @@ extension Fetcher.Wrapper where Source: UIImageView {
                     completion(.success(image))
                     return
                 case .failure(let error):
-                    log(event: ("FETCHER MAIN ERROR: \(error.description), FROM: \(from.absoluteString)"))
+                    log(event: ("FETCHER MAIN ERROR: \(error.description), FROM: \(from.absoluteString)"), source: .fetcher)
                     completion(.failure(error))
                     return
                 }
