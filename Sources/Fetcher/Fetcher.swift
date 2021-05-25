@@ -11,7 +11,8 @@ import StorageKit
 import NetworkKit
 import InterfaceKit
 
-internal let queue = DispatchQueue(label: "com.fetcher.queue", qos: .userInteractive, attributes: .concurrent)
+internal let iqueue = DispatchQueue(label: "com.fetcher.images.queue", qos: .userInteractive, attributes: .concurrent)
+internal let fqueue = DispatchQueue(label: "com.fetcher.files.queue", qos: .userInteractive, attributes: .concurrent)
 internal let main = DispatchQueue.main
 
 fileprivate protocol Resource {
@@ -44,14 +45,14 @@ extension Fetcher {
 
 public struct Fetcher {
     private init() {}
-    static func fetch(image from: URL,
-                      configuration: Storage.Configuration,
-                      recognizer: UUID,
-                      options: Fetcher.Option.Parsed,
-                      progress: @escaping (Result<Network.Progress, Fetcher.Failure>) -> Void,
-                      completion: @escaping (Result<Image, Fetcher.Failure>) -> Void) {
+    internal static func fetch(image from: URL,
+                               configuration: Storage.Configuration,
+                               recognizer: UUID,
+                               options: Fetcher.Option.Parsed,
+                               progress: @escaping (Result<Network.Progress, Fetcher.Failure>) -> Void,
+                               completion: @escaping (Result<Image, Fetcher.Failure>) -> Void) {
         Storage.get(file: .image(named: from.absoluteString), configuration: configuration) { (result) in
-            queue.async {
+            iqueue.async {
                 switch result {
                 case .success(let output):
                     guard let image = output.file.decoded(transparent: options.transparent) else {
@@ -63,7 +64,7 @@ public struct Fetcher {
                     return
                 case .failure:
                     Workstation.shared.perform(work: .download(file: from, session: .foreground), format: .image(named: from.absoluteString), configuration: configuration, recognizer: recognizer) { (result) in
-                        queue.async {
+                        iqueue.async {
                             switch result {
                             case .success(let result):
                                 switch result.progress {
@@ -95,6 +96,76 @@ public struct Fetcher {
             }
         }
     }
+    public static func fetch(video id: Int,
+                             configuration: Storage.Configuration = Settings.Storage.configuration,
+                             progress: @escaping (Result<Network.Progress, Fetcher.Failure>) -> Void) {
+        progress(.success(.loading))
+        Storage.get(file: .video(id: id), configuration: configuration) { result in
+            fqueue.async {
+                switch result {
+                case .success(let output):
+                    main.async {
+                        progress(.success(.finished(output: Network.Progress.Output(data: output.file.data))))
+                    }
+                case .failure:
+                    Network.get(object: Core.Video.self, with: Network.Shared.video(id: id)) { (result) in
+                        fqueue.async {
+                            switch result {
+                            case .success(let video):
+                                guard let best = video.data.playlist.medialist.first?.sources?.http?.keys.sorted(by: {Int($0) ?? 0 > Int($1) ?? 0}).first,
+                                      let quality = video.data.playlist.medialist.first?.sources?.http?[best],
+                                      let url = URL(string: quality) else { return }
+                                log(event: "Fetch video: \(url.absoluteString)", source: .fetcher)
+                                Workstation.shared.perform(work: .download(file: url, session: .background), format: .video(id: id), configuration: configuration, recognizer: UUID(), representation: video.data.playlist.medialist.first?.item) { result in
+                                    switch result {
+                                    case .success(let output):
+                                        main.async {
+                                            progress(.success(output.progress))
+                                        }
+                                    case .failure(let failure):
+                                        progress(.failure(.error(failure)))
+                                    }
+                                }
+                            case .failure(let failure):
+                                progress(.failure(.error(failure)))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    public static func fetch(audio id: Int,
+                             configuration: Storage.Configuration = Settings.Storage.configuration,
+                             progress: @escaping (Result<Network.Progress, Fetcher.Failure>) -> Void) {
+        progress(.success(.loading))
+        Storage.get(file: .audio(id: id), configuration: configuration) { result in
+            fqueue.async {
+                switch result {
+                case .success(let output):
+                    progress(.success(.finished(output: Network.Progress.Output(data: output.file.data))))
+                case .failure:
+                    Network.get(object: Core.Audio.self, with: Network.Smotrim.audio(id: id)) { (result) in
+                        switch result {
+                        case .success(let audio):
+                            guard let source = audio.data.sources?.listen, let url = URL(string: source) else { return }
+                            log(event: "Fetch audio: \(url.absoluteString)", source: .fetcher)
+                            Workstation.shared.perform(work: .download(file: url, session: .background), format: .audio(id: id), configuration: configuration, recognizer: UUID(), representation: audio.data.item) { result in
+                                switch result {
+                                case .success(let output):
+                                    progress(.success(output.progress))
+                                case .failure(let failure):
+                                    progress(.failure(.error(failure)))
+                                }
+                            }
+                        case .failure(let failure):
+                            progress(.failure(.error(failure)))
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 extension UIImageView {
@@ -113,7 +184,7 @@ extension Fetcher.Wrapper where Source: UIImageView {
                       options: Fetcher.Options,
                       progress: @escaping (Result<Network.Progress, Fetcher.Failure>) -> Void = {_ in},
                       completion: @escaping (Result<UIImage, Fetcher.Failure>) -> Void = {_ in}) {
-        log(event: "Fetch: \(from.absoluteString)", source: .fetcher)
+        log(event: "Fetch image: \(from.absoluteString)", source: .fetcher)
         var _self = self
         _self.recognizer = UUID()
         let options = Fetcher.Option.Parsed(options: options)
@@ -127,7 +198,7 @@ extension Fetcher.Wrapper where Source: UIImageView {
                 })
                 switch result {
                 case .success(let resource):
-                    log(event: "Fetched: \(from.absoluteString), resource: \(resource.provider.description)", source: .fetcher)
+                    log(event: "Fetched image: \(from.absoluteString), resource: \(resource.provider.description)", source: .fetcher)
                     Workstation.shared.fetched(recognizer: resource.recognizer)
                     guard resource.recognizer == _self.recognizer else {
                         completion(.failure(.outsider))
@@ -168,7 +239,7 @@ extension Fetcher.Wrapper where Source: UIImageView {
                     completion(.success(image))
                     return
                 case .failure(let error):
-                    log(event: ("Fetcher error: \(error.description), resource: \(from.absoluteString)"), source: .fetcher)
+                    log(event: ("Fetcher image error: \(error.description), resource: \(from.absoluteString)"), source: .fetcher)
                     completion(.failure(error))
                     return
                 }

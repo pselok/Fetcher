@@ -28,12 +28,12 @@ extension Workstation.Worker {
 
 extension Workstation {
     public class Worker: Equatable {
-        let work: Work
-        let format: Storage.Format
-        let configuration: Storage.Configuration
-        let item: Core.Database.Item?
-        let remoteURL: URL
-        var progress: Network.Progress {
+        public let work: Work
+        public let format: Storage.Format
+        public let configuration: Storage.Configuration
+        public let item: Core.Database.Item?
+        public let remoteURL: URL
+        public var progress: Network.Progress {
             didSet {
                 switch progress {
                 case .failed(let error):
@@ -43,8 +43,8 @@ extension Workstation {
                 }
             }
         }
-        var recognizer: UUID
-        var leech: ((Result<Fetcher.Output, Fetcher.Failure>) -> Void)
+        public let recognizer: UUID
+        public var leech: ((Result<Fetcher.Output, Fetcher.Failure>) -> Void)
         
         public static func ==(lhs: Worker, rhs: Worker) -> Bool {
             return lhs.remoteURL == rhs.remoteURL && lhs.work == rhs.work && lhs.configuration == rhs.configuration && lhs.recognizer == rhs.recognizer
