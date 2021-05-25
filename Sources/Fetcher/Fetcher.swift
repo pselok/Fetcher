@@ -49,27 +49,26 @@ public struct Fetcher {
                                configuration: Storage.Configuration,
                                recognizer: UUID,
                                options: Fetcher.Option.Parsed,
-                               progress: @escaping (Result<Network.Progress, Fetcher.Failure>) -> Void,
+                               progress: @escaping (Result<Fetcher.Progress, Fetcher.Failure>) -> Void,
                                completion: @escaping (Result<Image, Fetcher.Failure>) -> Void) {
         Storage.get(file: .image(named: from.absoluteString), configuration: configuration) { (result) in
             iqueue.async {
                 switch result {
                 case .success(let output):
-                    guard let image = output.file.decoded(transparent: options.transparent) else {
+                    guard let image = UIImage(contentsOfFile: output.file.url.absoluteString) else {
                         completion(.failure(.explicit(string: "STORAGE Failed to convert data to UIImage")))
                         return
                     }
-                    Storage.set(file: Storage.File.Image(data: output.file.data, meta: output.file.meta, image: image), configuration: .memory)
                     completion(.success(Image(image: image, recognizer: recognizer, provider: .storage(provider: output.provider))))
                     return
                 case .failure:
-                    Workstation.shared.perform(work: .download(file: from, session: .foreground), format: .image(named: from.absoluteString), configuration: configuration, recognizer: recognizer) { (result) in
+                    Workstation.shared.perform(work: .download(file: from, session: .foreground), file: .image(named: from.absoluteString), configuration: configuration, recognizer: recognizer) { (result) in
                         iqueue.async {
                             switch result {
                             case .success(let result):
                                 switch result.progress {
                                 case .finished(let output):
-                                    guard let image = UIImage.decoded(data: output.data, transparent: options.transparent) else {
+                                    guard let image = UIImage(contentsOfFile: output.url.absoluteString)else {
                                         completion(.failure(.explicit(string: "NETWORK Failed to convert data to UIImage")))
                                         return
                                     }
@@ -98,14 +97,14 @@ public struct Fetcher {
     }
     public static func fetch(video id: Int,
                              configuration: Storage.Configuration = Settings.Storage.configuration,
-                             progress: @escaping (Result<Network.Progress, Fetcher.Failure>) -> Void) {
+                             progress: @escaping (Result<Fetcher.Progress, Fetcher.Failure>) -> Void) {
         progress(.success(.loading))
         Storage.get(file: .video(id: id), configuration: configuration) { result in
             fqueue.async {
                 switch result {
                 case .success(let output):
                     main.async {
-                        progress(.success(.finished(output: Network.Progress.Output(data: output.file.data))))
+                        progress(.success(.finished(output: Fetcher.Progress.Output(url: output.file.url))))
                     }
                 case .failure:
                     Network.get(object: Core.Video.self, with: Network.Shared.video(id: id)) { (result) in
@@ -116,7 +115,7 @@ public struct Fetcher {
                                       let quality = video.data.playlist.medialist.first?.sources?.http?[best],
                                       let url = URL(string: quality) else { return }
                                 log(event: "Fetch video: \(url.absoluteString)", source: .fetcher)
-                                Workstation.shared.perform(work: .download(file: url, session: .background), format: .video(id: id), configuration: configuration, recognizer: UUID(), representation: video.data.playlist.medialist.first?.item) { result in
+                                Workstation.shared.perform(work: .download(file: url, session: .background), file: .video(id: id), configuration: configuration, recognizer: UUID(), representation: video.data.playlist.medialist.first?.item) { result in
                                     switch result {
                                     case .success(let output):
                                         main.async {
@@ -137,20 +136,20 @@ public struct Fetcher {
     }
     public static func fetch(audio id: Int,
                              configuration: Storage.Configuration = Settings.Storage.configuration,
-                             progress: @escaping (Result<Network.Progress, Fetcher.Failure>) -> Void) {
+                             progress: @escaping (Result<Fetcher.Progress, Fetcher.Failure>) -> Void) {
         progress(.success(.loading))
         Storage.get(file: .audio(id: id), configuration: configuration) { result in
             fqueue.async {
                 switch result {
                 case .success(let output):
-                    progress(.success(.finished(output: Network.Progress.Output(data: output.file.data))))
+                    progress(.success(.finished(output: Fetcher.Progress.Output(url: output.file.url))))
                 case .failure:
                     Network.get(object: Core.Audio.self, with: Network.Smotrim.audio(id: id)) { (result) in
                         switch result {
                         case .success(let audio):
                             guard let source = audio.data.sources?.listen, let url = URL(string: source) else { return }
                             log(event: "Fetch audio: \(url.absoluteString)", source: .fetcher)
-                            Workstation.shared.perform(work: .download(file: url, session: .background), format: .audio(id: id), configuration: configuration, recognizer: UUID(), representation: audio.data.item) { result in
+                            Workstation.shared.perform(work: .download(file: url, session: .background), file: .audio(id: id), configuration: configuration, recognizer: UUID(), representation: audio.data.item) { result in
                                 switch result {
                                 case .success(let output):
                                     progress(.success(output.progress))
@@ -171,7 +170,7 @@ public struct Fetcher {
 extension UIImageView {
     public func fetch(image from: URL,
                   options: Fetcher.Options = [.transition(.fade(duration: 0.5))],
-                  progress: @escaping (Result<Network.Progress, Fetcher.Failure>) -> Void = {_ in},
+                  progress: @escaping (Result<Fetcher.Progress, Fetcher.Failure>) -> Void = {_ in},
                   completion: @escaping (Result<UIImage, Fetcher.Failure>) -> Void = {_ in}) {
         main.async {
             Fetcher.Wrapper(source: self).fetch(image: from, options: options, progress: progress, completion: completion)
@@ -182,7 +181,7 @@ extension UIImageView {
 extension Fetcher.Wrapper where Source: UIImageView {
     public func fetch(image from: URL,
                       options: Fetcher.Options,
-                      progress: @escaping (Result<Network.Progress, Fetcher.Failure>) -> Void = {_ in},
+                      progress: @escaping (Result<Fetcher.Progress, Fetcher.Failure>) -> Void = {_ in},
                       completion: @escaping (Result<UIImage, Fetcher.Failure>) -> Void = {_ in}) {
         log(event: "Fetch image: \(from.absoluteString)", source: .fetcher)
         var _self = self

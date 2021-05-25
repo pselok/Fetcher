@@ -63,8 +63,8 @@ public class Workstation: NSObject {
         sessions = Sessions(foreground: Network.Session.foreground(cache: .none, delegate: self).session, background: Network.Session.background(delegate: self, identifier: identifier).session)
     }
     
-    public func perform(work: Worker.Work, format: Storage.Format, configuration: Storage.Configuration, recognizer: UUID, representation item: Core.Database.Item? = nil, progress: @escaping (Result<Fetcher.Output, Fetcher.Failure>) -> Void) {
-        guard context.add(worker: Worker(work: work, format: format, configuration: configuration, remoteURL: work.url, progress: .loading, recognizer: recognizer, item: item, leech: progress)) else { return }
+    public func perform(work: Worker.Work, file: Storage.File, configuration: Storage.Configuration, recognizer: UUID, representation item: Core.Database.Item? = nil, progress: @escaping (Result<Fetcher.Output, Fetcher.Failure>) -> Void) {
+        guard context.add(worker: Worker(work: work, file: file, configuration: configuration, remoteURL: work.url, progress: .loading, recognizer: recognizer, item: item, leech: progress)) else { return }
         switch work {
         case .download(let url, let session):
             sessions.session(for: session).downloadTask(with: url).resume()
@@ -77,7 +77,7 @@ public class Workstation: NSObject {
         context.deafen(with: recognizer)
     }
     
-    public func toggle(worker: Worker, completion: @escaping (Network.Progress) -> Void) {
+    public func toggle(worker: Worker, completion: @escaping (Fetcher.Progress) -> Void) {
         sessions.all.forEach({
             $0.getAllTasks { (tasks) in
                 if let task = tasks.first(where: { (task) -> Bool in
@@ -123,7 +123,7 @@ public class Workstation: NSObject {
     
     private func average(from workers: [Worker]) -> Worker? {
         guard let first = workers.first else { return nil }
-        return Worker(work: first.work, format: first.format, configuration: workers.compactMap{$0.configuration}.sorted(by: {$0 > $1})[0], remoteURL: first.remoteURL, progress: first.progress, recognizer: first.recognizer, item: first.item, leech: first.leech)
+        return Worker(work: first.work, file: first.file, configuration: workers.compactMap{$0.configuration}.sorted(by: {$0 > $1})[0], remoteURL: first.remoteURL, progress: first.progress, recognizer: first.recognizer, item: first.item, leech: first.leech)
     }
     
     deinit {sessions.all.forEach({$0.invalidateAndCancel()})}
@@ -136,28 +136,34 @@ extension Workstation: URLSessionDownloadDelegate {
         guard !workers.isEmpty, let worker = average(from: workers) else { Storage.removeData(at: location); return }
         context.remove(with: url)
         do {
-            let data = try Data(contentsOf: location)
-            switch worker.format {
+            switch worker.file {
             case .image:
-                guard let _ = UIImage(data: data) else {
+                guard let decoded = UIImage(contentsOfFile: location.absoluteString)?.decoded,
+                      let data = decoded.pngData() else {
                     throw(Fetcher.Failure.data)
                 }
+                try data.write(to: location, options: .atomic)
             default:
                 break
             }
-            let output = Network.Progress.Output(data: data)
-            workers.forEach{$0.progress = .finished(output: output)}
             let meta = Storage.File.Meta(id       : worker.item?.id ?? worker.recognizer.hashValue,
                                          title    : worker.item?.title ?? worker.remoteURL.absoluteString,
                                          subtitle : worker.item?.subtitle,
                                          picture  : worker.item?.media?.picture?.id,
                                          extension: worker.remoteURL.pathExtension,
-                                         size     : .init(bytes: UInt64(data.count)),
+                                         size     : Storage.Disk.size(of: location),
                                          localURL : location,
                                          remoteURL: worker.remoteURL,
-                                         format   : worker.format)
-            let file = Storage.File(data: data, meta: meta)
-            Storage.set(file: file, configuration: worker.configuration)
+                                         file     : worker.file)
+            let file = Storage.File.Storable(url: location, meta: meta)
+            Storage.set(file: file, configuration: worker.configuration) { result in
+                switch result {
+                case .success(let output):
+                    workers.forEach{$0.progress = .finished(output: Fetcher.Progress.Output(url: output.file.url))}
+                case .failure(let failure):
+                    workers.forEach{$0.progress = .failed(error: .error(failure))}
+                }
+            }
         } catch {
             workers.forEach{$0.progress = .failed(error: .data)}
         }

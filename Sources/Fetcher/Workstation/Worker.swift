@@ -29,11 +29,11 @@ extension Workstation.Worker {
 extension Workstation {
     public class Worker: Equatable {
         public let work: Work
-        public let format: Storage.Format
+        public let file: Storage.File
         public let configuration: Storage.Configuration
         public let item: Core.Database.Item?
         public let remoteURL: URL
-        public var progress: Network.Progress {
+        public var progress: Fetcher.Progress {
             didSet {
                 switch progress {
                 case .failed(let error):
@@ -51,9 +51,9 @@ extension Workstation {
         }
         
         // MARK: - Init
-        init(work: Work, format: Storage.Format, configuration: Storage.Configuration, remoteURL: URL, progress: Network.Progress, recognizer: UUID, item: Core.Database.Item?, leech: @escaping ((Result<Fetcher.Output, Fetcher.Failure>) -> Void)) {
+        init(work: Work, file: Storage.File, configuration: Storage.Configuration, remoteURL: URL, progress: Fetcher.Progress, recognizer: UUID, item: Core.Database.Item?, leech: @escaping ((Result<Fetcher.Output, Fetcher.Failure>) -> Void)) {
             self.work = work
-            self.format = format
+            self.file = file
             self.configuration = configuration
             self.remoteURL = remoteURL
             self.progress = progress

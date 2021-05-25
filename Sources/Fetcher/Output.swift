@@ -10,7 +10,7 @@ import NetworkKit
 
 extension Fetcher {
     public struct Output {
-        public let progress: Network.Progress
+        public let progress: Fetcher.Progress
         public let recognizer: UUID
     }
 }
