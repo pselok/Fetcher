@@ -6,6 +6,7 @@
 //
 
 import UIKit
+import CoreKit
 import Foundation
 import StorageKit
 import NetworkKit
@@ -62,8 +63,8 @@ public class Workstation: NSObject {
         sessions = Sessions(foreground: Network.Session.foreground(cache: .none, delegate: self).session, background: Network.Session.background(delegate: self, identifier: identifier).session)
     }
     
-    public func perform(work: Worker.Work, format: Storage.Format, configuration: Storage.Configuration, recognizer: UUID, progress: @escaping (Result<Fetcher.Output, Fetcher.Failure>) -> Void) {
-        guard context.add(worker: Worker(work: work, format: format, configuration: configuration, remoteURL: work.url, progress: .loading, recognizer: recognizer, leech: progress)) else { return }
+    public func perform(work: Worker.Work, format: Storage.Format, configuration: Storage.Configuration, recognizer: UUID, representation item: Core.Database.Item? = nil, progress: @escaping (Result<Fetcher.Output, Fetcher.Failure>) -> Void) {
+        guard context.add(worker: Worker(work: work, format: format, configuration: configuration, remoteURL: work.url, progress: .loading, recognizer: recognizer, item: item, leech: progress)) else { return }
         switch work {
         case .download(let url, let session):
             sessions.session(for: session).downloadTask(with: url).resume()
@@ -122,10 +123,10 @@ public class Workstation: NSObject {
     
     private func average(from workers: [Worker]) -> Worker? {
         guard let first = workers.first else { return nil }
-        return Worker(work: first.work, format: first.format, configuration: workers.compactMap{$0.configuration}.sorted(by: {$0 > $1})[0], remoteURL: first.remoteURL, progress: first.progress, recognizer: first.recognizer, leech: first.leech)
+        return Worker(work: first.work, format: first.format, configuration: workers.compactMap{$0.configuration}.sorted(by: {$0 > $1})[0], remoteURL: first.remoteURL, progress: first.progress, recognizer: first.recognizer, item: first.item, leech: first.leech)
     }
     
-        deinit {sessions.all.forEach({$0.invalidateAndCancel()})}
+    deinit {sessions.all.forEach({$0.invalidateAndCancel()})}
 }
 
 extension Workstation: URLSessionDownloadDelegate {
@@ -136,19 +137,25 @@ extension Workstation: URLSessionDownloadDelegate {
         context.remove(with: url)
         do {
             let data = try Data(contentsOf: location)
-            if worker.format == .image {
+            switch worker.format {
+            case .image:
                 guard let _ = UIImage(data: data) else {
                     throw(Fetcher.Failure.data)
                 }
+            default:
+                break
             }
             let output = Network.Progress.Output(data: data)
             workers.forEach{$0.progress = .finished(output: output)}
-            let meta = Storage.File.Meta(name           : worker.remoteURL.absoluteString,
-                                         extension      : worker.remoteURL.pathExtension,
-                                         size           : .init(bytes: UInt64(data.count)),
-                                         localURL       : location,
-                                         remoteURL      : worker.remoteURL,
-                                         format         : worker.format)
+            let meta = Storage.File.Meta(id       : worker.item?.id ?? worker.recognizer.hashValue,
+                                         title    : worker.item?.title ?? worker.remoteURL.absoluteString,
+                                         subtitle : worker.item?.subtitle,
+                                         picture  : worker.item?.media?.picture?.id,
+                                         extension: worker.remoteURL.pathExtension,
+                                         size     : .init(bytes: UInt64(data.count)),
+                                         localURL : location,
+                                         remoteURL: worker.remoteURL,
+                                         format   : worker.format)
             let file = Storage.File(data: data, meta: meta)
             Storage.set(file: file, configuration: worker.configuration)
         } catch {

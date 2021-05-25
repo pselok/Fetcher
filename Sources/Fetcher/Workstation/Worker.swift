@@ -5,6 +5,7 @@
 //  Created by Eduard Shugar on 05.04.2020.
 //
 
+import CoreKit
 import Foundation
 import StorageKit
 import NetworkKit
@@ -30,6 +31,7 @@ extension Workstation {
         let work: Work
         let format: Storage.Format
         let configuration: Storage.Configuration
+        let item: Core.Database.Item?
         let remoteURL: URL
         var progress: Network.Progress {
             didSet {
@@ -49,13 +51,14 @@ extension Workstation {
         }
         
         // MARK: - Init
-        init(work: Work, format: Storage.Format, configuration: Storage.Configuration, remoteURL: URL, progress: Network.Progress, recognizer: UUID, leech: @escaping ((Result<Fetcher.Output, Fetcher.Failure>) -> Void)) {
+        init(work: Work, format: Storage.Format, configuration: Storage.Configuration, remoteURL: URL, progress: Network.Progress, recognizer: UUID, item: Core.Database.Item?, leech: @escaping ((Result<Fetcher.Output, Fetcher.Failure>) -> Void)) {
             self.work = work
             self.format = format
             self.configuration = configuration
             self.remoteURL = remoteURL
             self.progress = progress
             self.recognizer = recognizer
+            self.item = item
             self.leech = leech
         }
     }

@@ -44,14 +44,13 @@ extension Fetcher {
 
 public struct Fetcher {
     private init() {}
-    
     static func fetch(image from: URL,
-                    configuration: Storage.Configuration,
-                    recognizer: UUID,
-                    options: Fetcher.Option.Parsed,
-                    progress: @escaping (Result<Network.Progress, Fetcher.Failure>) -> Void,
-                    completion: @escaping (Result<Image, Fetcher.Failure>) -> Void) {
-        Storage.get(file: .image, name: from.absoluteString, configuration: configuration) { (result) in
+                      configuration: Storage.Configuration,
+                      recognizer: UUID,
+                      options: Fetcher.Option.Parsed,
+                      progress: @escaping (Result<Network.Progress, Fetcher.Failure>) -> Void,
+                      completion: @escaping (Result<Image, Fetcher.Failure>) -> Void) {
+        Storage.get(file: .image(named: from.absoluteString), configuration: configuration) { (result) in
             queue.async {
                 switch result {
                 case .success(let output):
@@ -63,7 +62,7 @@ public struct Fetcher {
                     completion(.success(Image(image: image, recognizer: recognizer, provider: .storage(provider: output.provider))))
                     return
                 case .failure:
-                    Workstation.shared.perform(work: .download(file: from, session: .foreground), format: .image, configuration: configuration, recognizer: recognizer) { (result) in
+                    Workstation.shared.perform(work: .download(file: from, session: .foreground), format: .image(named: from.absoluteString), configuration: configuration, recognizer: recognizer) { (result) in
                         queue.async {
                             switch result {
                             case .success(let result):
