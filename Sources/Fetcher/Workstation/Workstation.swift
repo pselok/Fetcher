@@ -131,18 +131,21 @@ public class Workstation: NSObject {
 
 extension Workstation: URLSessionDownloadDelegate {
     public func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
-        guard let url = downloadTask.originalRequest?.url else {Storage.removeData(at: location); return}
+        guard let url = downloadTask.originalRequest?.url else { Storage.removeData(at: location); return }
         let workers = context.workers(with: url)
         guard !workers.isEmpty, let worker = average(from: workers) else { Storage.removeData(at: location); return }
         context.remove(with: url)
+        var location = location
         do {
             switch worker.file {
             case .image:
-                guard let decoded = UIImage(contentsOfFile: location.absoluteString)?.decoded,
+                guard let raw = UIImage(contentsOfFile: location.path),
+                      let decoded = raw.decoded,
                       let data = decoded.pngData() else {
                     throw(Fetcher.Failure.data)
                 }
-                try data.write(to: location, options: .atomic)
+                location = try Storage.Disk.createURL(for: Storage.Folder.path(to: worker.file), in: .documents).dataURL
+                try data.write(to: location)
             default:
                 break
             }
@@ -159,15 +162,17 @@ extension Workstation: URLSessionDownloadDelegate {
             Storage.set(file: file, configuration: worker.configuration) { result in
                 switch result {
                 case .success(let output):
+                    print("SSSSSSS")
                     workers.forEach{$0.progress = .finished(output: Fetcher.Progress.Output(url: output.file.url))}
                 case .failure(let failure):
+                    print("FFF \(failure)")
                     workers.forEach{$0.progress = .failed(error: .error(failure))}
                 }
             }
-        } catch {
+        } catch let error {
+            print(error)
             workers.forEach{$0.progress = .failed(error: .data)}
         }
-        Storage.removeData(at: location)
     }
     
     public func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession) {

@@ -51,11 +51,12 @@ public struct Fetcher {
                                options: Fetcher.Option.Parsed,
                                progress: @escaping (Result<Fetcher.Progress, Fetcher.Failure>) -> Void,
                                completion: @escaping (Result<Image, Fetcher.Failure>) -> Void) {
+        progress(.success(.loading))
         Storage.get(file: .image(named: from.absoluteString), configuration: configuration) { (result) in
             iqueue.async {
                 switch result {
                 case .success(let output):
-                    guard let image = UIImage(contentsOfFile: output.file.url.absoluteString) else {
+                    guard let image = UIImage(contentsOfFile: output.file.url.path) else {
                         completion(.failure(.explicit(string: "STORAGE Failed to convert data to UIImage")))
                         return
                     }
@@ -68,7 +69,7 @@ public struct Fetcher {
                             case .success(let result):
                                 switch result.progress {
                                 case .finished(let output):
-                                    guard let image = UIImage(contentsOfFile: output.url.absoluteString)else {
+                                    guard let image = UIImage(contentsOfFile: output.url.path)else {
                                         completion(.failure(.explicit(string: "NETWORK Failed to convert data to UIImage")))
                                         return
                                     }
@@ -238,7 +239,7 @@ extension Fetcher.Wrapper where Source: UIImageView {
                     completion(.success(image))
                     return
                 case .failure(let error):
-                    log(event: ("Fetcher image error: \(error.description), resource: \(from.absoluteString)"), source: .fetcher)
+                    log(event: ("Fetcher image error: \(error), resource: \(from.absoluteString)"), source: .fetcher)
                     completion(.failure(error))
                     return
                 }
