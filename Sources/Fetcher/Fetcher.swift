@@ -56,7 +56,7 @@ public struct Fetcher {
             iqueue.async {
                 switch result {
                 case .success(let output):
-                    guard let image = UIImage(contentsOfFile: output.file.url.path) else {
+                    guard let image = UIImage(contentsOfFile: output.file.url.path)?.decoded else {
                         completion(.failure(.explicit(string: "STORAGE Failed to convert data to UIImage")))
                         return
                     }
@@ -69,7 +69,7 @@ public struct Fetcher {
                             case .success(let result):
                                 switch result.progress {
                                 case .finished(let output):
-                                    guard let image = UIImage(contentsOfFile: output.url.path)else {
+                                    guard let image = UIImage(contentsOfFile: output.url.path)?.decoded else {
                                         completion(.failure(.explicit(string: "NETWORK Failed to convert data to UIImage")))
                                         return
                                     }

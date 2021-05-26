@@ -135,43 +135,39 @@ extension Workstation: URLSessionDownloadDelegate {
         let workers = context.workers(with: url)
         guard !workers.isEmpty, let worker = average(from: workers) else { Storage.removeData(at: location); return }
         context.remove(with: url)
-        var location = location
         do {
             switch worker.file {
             case .image:
-                guard let raw = UIImage(contentsOfFile: location.path),
-                      let decoded = raw.decoded,
-                      let data = decoded.pngData() else {
+                guard let data = UIImage(contentsOfFile: location.path)?.pngData() else {
                     throw(Fetcher.Failure.data)
                 }
-                location = try Storage.Disk.createURL(for: Storage.Folder.path(to: worker.file), in: .documents).dataURL
-                try data.write(to: location)
+                try data.write(to: location, options: .atomic)
             default:
                 break
             }
+            let destination = try Storage.Disk.createURL(for: Storage.Folder.path(to: worker.file), in: .caches).dataURL
+            try Storage.Disk.createSubfoldersBeforeCreatingFile(at: destination)
+            try FileManager.default.moveItem(at: location, to: destination)
             let meta = Storage.File.Meta(id       : worker.item?.id ?? worker.recognizer.hashValue,
                                          title    : worker.item?.title ?? worker.remoteURL.absoluteString,
                                          subtitle : worker.item?.subtitle,
                                          picture  : worker.item?.media?.picture?.id,
                                          extension: worker.remoteURL.pathExtension,
-                                         size     : Storage.Disk.size(of: location),
-                                         localURL : location,
+                                         size     : Storage.Disk.size(of: destination),
+                                         localURL : destination,
                                          remoteURL: worker.remoteURL,
                                          file     : worker.file)
-            let file = Storage.File.Storable(url: location, meta: meta)
+            let file = Storage.File.Storable(url: destination, meta: meta)
             Storage.set(file: file, configuration: worker.configuration) { result in
                 switch result {
                 case .success(let output):
-                    print("SSSSSSS")
                     workers.forEach{$0.progress = .finished(output: Fetcher.Progress.Output(url: output.file.url))}
                 case .failure(let failure):
-                    print("FFF \(failure)")
                     workers.forEach{$0.progress = .failed(error: .error(failure))}
                 }
             }
         } catch let error {
-            print(error)
-            workers.forEach{$0.progress = .failed(error: .data)}
+            workers.forEach{$0.progress = .failed(error: .error(error))}
         }
     }
     
