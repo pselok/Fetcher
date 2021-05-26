@@ -22,11 +22,11 @@ extension Fetcher {
             case .explicit(let error):
                 return error
             case .data:
-                return "Data error"
+                return "Ошибка с данными"
             case .outsider:
-                return "Wrong source"
+                return "Неверный источник"
             case .cancelled:
-                return "Cancelled"
+                return "Отменено"
             }
         }
     }

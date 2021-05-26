@@ -37,7 +37,7 @@ extension Workstation {
             didSet {
                 switch progress {
                 case .failed(let error):
-                    leech(.failure(.error(error)))
+                    leech(.failure(error))
                 default:
                     leech(.success(Fetcher.Output(progress: progress, recognizer: recognizer)))
                 }

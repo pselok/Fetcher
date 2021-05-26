@@ -123,11 +123,15 @@ public struct Fetcher {
                                             progress(.success(output.progress))
                                         }
                                     case .failure(let failure):
-                                        progress(.failure(.error(failure)))
+                                        main.async {
+                                            progress(.failure(failure))
+                                        }
                                     }
                                 }
                             case .failure(let failure):
-                                progress(.failure(.error(failure)))
+                                main.async {
+                                    progress(.failure(.error(failure)))
+                                }
                             }
                         }
                     }
@@ -143,7 +147,9 @@ public struct Fetcher {
             fqueue.async {
                 switch result {
                 case .success(let output):
-                    progress(.success(.finished(output: Fetcher.Progress.Output(url: output.file.url))))
+                    main.async {
+                        progress(.success(.finished(output: Fetcher.Progress.Output(url: output.file.url))))
+                    }
                 case .failure:
                     Network.get(object: Core.Audio.self, with: Network.Smotrim.audio(id: id)) { (result) in
                         switch result {
@@ -153,13 +159,19 @@ public struct Fetcher {
                             Workstation.shared.perform(work: .download(file: url, session: .background), file: .audio(id: id), configuration: configuration, recognizer: UUID(), representation: audio.data.item) { result in
                                 switch result {
                                 case .success(let output):
-                                    progress(.success(output.progress))
+                                    main.async {
+                                        progress(.success(output.progress))
+                                    }
                                 case .failure(let failure):
-                                    progress(.failure(.error(failure)))
+                                    main.async {
+                                        progress(.failure(failure))
+                                    }
                                 }
                             }
                         case .failure(let failure):
-                            progress(.failure(.error(failure)))
+                            main.async {
+                                progress(.failure(.error(failure)))
+                            }
                         }
                     }
                 }

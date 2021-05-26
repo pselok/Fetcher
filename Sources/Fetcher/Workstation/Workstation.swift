@@ -156,17 +156,22 @@ extension Workstation: URLSessionDownloadDelegate {
                                          size     : Storage.Disk.size(of: destination),
                                          localURL : destination,
                                          remoteURL: worker.remoteURL,
-                                         file     : worker.file)
+                                         file     : worker.file,
+                                         created  : Date())
             let file = Storage.File.Storable(url: destination, meta: meta)
+            log(event: "Workstation saving file: \(meta.title)", source: .fetcher)
             Storage.set(file: file, configuration: worker.configuration) { result in
                 switch result {
                 case .success(let output):
                     workers.forEach{$0.progress = .finished(output: Fetcher.Progress.Output(url: output.file.url))}
+                    log(event: "Workstation saved file: \(meta.title)", source: .fetcher)
                 case .failure(let failure):
                     workers.forEach{$0.progress = .failed(error: .error(failure))}
+                    log(event: "Workstation failed saving file: \(meta.title)", source: .fetcher)
                 }
             }
         } catch let error {
+            log(event: "Workstation catched error: \(error)", source: .fetcher)
             workers.forEach{$0.progress = .failed(error: .error(error))}
         }
     }
@@ -180,7 +185,9 @@ extension Workstation: URLSessionDownloadDelegate {
         
     public func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
         guard let url = task.originalRequest?.url, let error = error else { return }
-        context.workers(with: url).forEach{$0.progress = .failed(error: .error(error))}
+        context.workers(with: url).forEach{$0.progress = .failed(error: (error as NSError).code == 28 ? .explicit(string: "На устройстве нет места") : .error(error))}
+        context.remove(with: url)
+        log(event: "Workstation notified and removed all workers because of error: \(error.localizedDescription)", source: .fetcher)
     }
 
     public func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didResumeAtOffset fileOffset: Int64, expectedTotalBytes: Int64) {
