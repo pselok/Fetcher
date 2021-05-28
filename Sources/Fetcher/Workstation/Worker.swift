@@ -45,6 +45,7 @@ extension Workstation {
         }
         public let recognizer: UUID
         public var leech: ((Result<Fetcher.Output, Fetcher.Failure>) -> Void)
+        public var created: Date
         
         public static func ==(lhs: Worker, rhs: Worker) -> Bool {
             return lhs.remoteURL == rhs.remoteURL && lhs.work == rhs.work && lhs.configuration == rhs.configuration && lhs.recognizer == rhs.recognizer
@@ -60,6 +61,7 @@ extension Workstation {
             self.recognizer = recognizer
             self.item = item
             self.leech = leech
+            self.created = Date()
         }
     }
 }

@@ -11,9 +11,19 @@ import Foundation
 import StorageKit
 import NetworkKit
 
+public protocol WorkstationListener: AnyObject {
+    func updated(workers: [Workstation.Worker])
+}
+
 extension Workstation {
     public class Context {
-        public private(set) var workers: [Worker] = []
+        public private(set) var workers: [Worker] = [] {
+            didSet {
+                guard let listener = listener else { return }
+                listener.updated(workers: workers)
+            }
+        }
+        fileprivate weak var listener: WorkstationListener?
         private let lock = NSLock()
         
         public func workers(with url: URL) -> [Worker] {
@@ -52,6 +62,14 @@ public class Workstation: NSObject {
     
     public var workers: [Worker] {
         return context.workers
+    }
+    
+    public var listener: WorkstationListener? {
+        get {
+            return context.listener
+        } set {
+            context.listener = newValue
+        }
     }
 
     // MARK: - Singleton
@@ -145,7 +163,7 @@ extension Workstation: URLSessionDownloadDelegate {
             default:
                 break
             }
-            let destination = try Storage.Disk.createURL(for: Storage.Folder.path(to: worker.file), in: .caches).dataURL
+            let destination = try Storage.Disk.createURL(for: Storage.Folder.path(to: worker.file), in: .caches).fileURL
             try Storage.Disk.createSubfoldersBeforeCreatingFile(at: destination)
             try FileManager.default.moveItem(at: location, to: destination)
             let meta = Storage.File.Meta(id       : worker.item?.id ?? worker.recognizer.hashValue,
@@ -154,7 +172,6 @@ extension Workstation: URLSessionDownloadDelegate {
                                          picture  : worker.item?.media?.picture?.id,
                                          extension: worker.remoteURL.pathExtension,
                                          size     : Storage.Disk.size(of: destination),
-                                         localURL : destination,
                                          remoteURL: worker.remoteURL,
                                          file     : worker.file,
                                          created  : Date())
@@ -163,7 +180,7 @@ extension Workstation: URLSessionDownloadDelegate {
             Storage.set(file: file, configuration: worker.configuration) { result in
                 switch result {
                 case .success(let output):
-                    workers.forEach{$0.progress = .finished(output: Fetcher.Progress.Output(url: output.file.url))}
+                    workers.forEach{$0.progress = .finished(file: output.file)}
                     log(event: "Workstation saved file: \(meta.title)", source: .fetcher)
                 case .failure(let failure):
                     workers.forEach{$0.progress = .failed(error: .error(failure))}

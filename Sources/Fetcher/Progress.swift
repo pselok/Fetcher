@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import StorageKit
 
 extension Fetcher {
     public enum Progress {
@@ -15,7 +16,7 @@ extension Fetcher {
         case paused
         case cancelled
         case failed(error: Fetcher.Failure)
-        case finished(output: Progress.Output)
+        case finished(file: Storable)
     }
 }
 
