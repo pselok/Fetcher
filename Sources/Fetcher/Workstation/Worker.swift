@@ -37,22 +37,30 @@ extension Workstation {
             didSet {
                 switch progress {
                 case .failed(let error):
-                    leech(.failure(error))
+                    leeches.values.forEach({$0(.failure(error))})
                 default:
-                    leech(.success(Fetcher.Output(progress: progress, recognizer: recognizer)))
+                    leeches.values.forEach({$0(.success(Fetcher.Output(progress: progress, recognizer: recognizer)))})
                 }
             }
         }
         public let recognizer: UUID
-        public var leech: ((Result<Fetcher.Output, Fetcher.Failure>) -> Void)
+        public let leech: (Result<Fetcher.Output, Fetcher.Failure>) -> Void
+        public var leeches: [UUID: (Result<Fetcher.Output, Fetcher.Failure>) -> Void]
         public var created: Date
-        
+                
         public static func ==(lhs: Worker, rhs: Worker) -> Bool {
             return lhs.remoteURL == rhs.remoteURL && lhs.work == rhs.work && lhs.configuration == rhs.configuration && lhs.recognizer == rhs.recognizer
         }
         
         // MARK: - Init
-        init(work: Work, file: Storage.File, configuration: Storage.Configuration, remoteURL: URL, progress: Fetcher.Progress, recognizer: UUID, item: Core.Database.Item?, leech: @escaping ((Result<Fetcher.Output, Fetcher.Failure>) -> Void)) {
+        init(work: Work,
+             file: Storage.File,
+             configuration: Storage.Configuration,
+             remoteURL: URL,
+             progress: Fetcher.Progress,
+             recognizer: UUID,
+             item: Core.Database.Item?,
+             leech: @escaping (Result<Fetcher.Output, Fetcher.Failure>) -> Void) {
             self.work = work
             self.file = file
             self.configuration = configuration
@@ -61,6 +69,27 @@ extension Workstation {
             self.recognizer = recognizer
             self.item = item
             self.leech = leech
+            self.leeches = [recognizer: leech]
+            self.created = Date()
+        }
+        init(work: Work,
+             file: Storage.File,
+             configuration: Storage.Configuration,
+             remoteURL: URL,
+             progress: Fetcher.Progress,
+             recognizer: UUID,
+             item: Core.Database.Item?,
+             leech: @escaping (Result<Fetcher.Output, Fetcher.Failure>) -> Void,
+             leeches: [UUID: (Result<Fetcher.Output, Fetcher.Failure>) -> Void]) {
+            self.work = work
+            self.file = file
+            self.configuration = configuration
+            self.remoteURL = remoteURL
+            self.progress = progress
+            self.recognizer = recognizer
+            self.item = item
+            self.leech = leech
+            self.leeches = leeches
             self.created = Date()
         }
     }

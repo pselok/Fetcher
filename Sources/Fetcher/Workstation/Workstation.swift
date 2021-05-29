@@ -141,7 +141,22 @@ public class Workstation: NSObject {
     
     private func average(from workers: [Worker]) -> Worker? {
         guard let first = workers.first else { return nil }
-        return Worker(work: first.work, file: first.file, configuration: workers.compactMap{$0.configuration}.sorted(by: {$0 > $1})[0], remoteURL: first.remoteURL, progress: first.progress, recognizer: first.recognizer, item: first.item, leech: first.leech)
+        let leeches: [UUID: (Result<Fetcher.Output, Fetcher.Failure>) -> Void] = {
+            var leeches: [UUID: (Result<Fetcher.Output, Fetcher.Failure>) -> Void] = [:]
+            for leech in workers.flatMap({$0.leeches}) {
+                leeches[leech.key] = leech.value
+            }
+            return leeches
+        }()
+        return Worker(work         : first.work,
+                      file         : first.file,
+                      configuration: workers.compactMap{$0.configuration}.sorted(by: {$0 > $1})[0],
+                      remoteURL    : first.remoteURL,
+                      progress     : first.progress,
+                      recognizer   : first.recognizer,
+                      item         : first.item,
+                      leech        : first.leech,
+                      leeches      : leeches)
     }
     
     deinit {sessions.all.forEach({$0.invalidateAndCancel()})}
