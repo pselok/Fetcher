@@ -97,10 +97,9 @@ public struct Fetcher {
         }
     }
     public static func fetch(file: StorageKit.Storage.File,
-                             configuration: Storage.Configuration = Settings.Storage.configuration,
                              progress: @escaping (Result<Fetcher.Progress, Fetcher.Failure>) -> Void) {
         progress(.success(.loading))
-        Storage.get(file: file, configuration: configuration) { result in
+        Storage.get(file: file) { result in
             fqueue.async {
                 switch result {
                 case .success(let output):
@@ -111,38 +110,16 @@ public struct Fetcher {
                     switch file {
                     case .audio(let id):
                         Network.get(object: Core.Audio.self, with: Network.Smotrim.audio(id: id)) { (result) in
-                            switch result {
-                            case .success(let audio):
-                                guard let source = audio.data.sources?.mp3, let url = URL(string: source) else { return }
-                                log(event: "Fetch audio: \(url.absoluteString)", source: .fetcher)
-                                Workstation.shared.perform(work: .download(file: url, session: .background), file: .audio(id: id), configuration: configuration, recognizer: UUID(), representation: audio.data.item) { result in
-                                    switch result {
-                                    case .success(let output):
-                                        main.async {
-                                            progress(.success(output.progress))
-                                        }
-                                    case .failure(let failure):
-                                        main.async {
-                                            progress(.failure(failure))
-                                        }
-                                    }
-                                }
-                            case .failure(let failure):
-                                main.async {
-                                    progress(.failure(.error(failure)))
-                                }
-                            }
-                        }
-                    case .video(let id):
-                        Network.get(object: Core.Video.self, with: Network.Shared.video(id: id)) { (result) in
                             fqueue.async {
                                 switch result {
-                                case .success(let video):
-                                    guard let best = video.data.playlist.medialist.first?.sources?.http?.keys.sorted(by: {Int($0) ?? 0 > Int($1) ?? 0}).first,
-                                          let quality = video.data.playlist.medialist.first?.sources?.http?[best],
-                                          let url = URL(string: quality) else { return }
-                                    log(event: "Fetch video: \(url.absoluteString)", source: .fetcher)
-                                    Workstation.shared.perform(work: .download(file: url, session: .background), file: .video(id: id), configuration: configuration, recognizer: UUID(), representation: video.data.playlist.medialist.first?.item) { result in
+                                case .success(let audio):
+                                    guard let source = audio.data.sources?.mp3, let url = URL(string: source) else { return }
+                                    log(event: "Fetch audio: \(url.absoluteString)", source: .fetcher)
+                                    Workstation.shared.perform(work: .download(file: url, session: .background),
+                                                               file: .audio(id: id),
+                                                               configuration: .weekly,
+                                                               recognizer: UUID(),
+                                                               representation: audio.data.item) { result in
                                         switch result {
                                         case .success(let output):
                                             main.async {
@@ -157,6 +134,40 @@ public struct Fetcher {
                                 case .failure(let failure):
                                     main.async {
                                         progress(.failure(.error(failure)))
+                                    }
+                                }
+                            }
+                        }
+                    case .video(let id):
+                        Network.get(object: Core.VideoItem.self, with: Network.Smotrim.video(id: id)) { (representation) in
+                            Network.get(object: Core.Video.self, with: Network.Shared.video(id: id)) { (result) in
+                                fqueue.async {
+                                    switch result {
+                                    case .success(let video):
+                                        guard let best = video.data.playlist.medialist.first?.sources?.http?.keys.sorted(by: {Int($0) ?? 0 > Int($1) ?? 0}).first,
+                                              let quality = video.data.playlist.medialist.first?.sources?.http?[best],
+                                              let url = URL(string: quality) else { return }
+                                        log(event: "Fetch video: \(url.absoluteString)", source: .fetcher)
+                                        Workstation.shared.perform(work: .download(file: url, session: .background),
+                                                                   file: .video(id: id),
+                                                                   configuration: .weekly,
+                                                                   recognizer: UUID(),
+                                                                   representation: try? representation.get().data.item ?? video.data.playlist.medialist.first?.item) { result in
+                                            switch result {
+                                            case .success(let output):
+                                                main.async {
+                                                    progress(.success(output.progress))
+                                                }
+                                            case .failure(let failure):
+                                                main.async {
+                                                    progress(.failure(failure))
+                                                }
+                                            }
+                                        }
+                                    case .failure(let failure):
+                                        main.async {
+                                            progress(.failure(.error(failure)))
+                                        }
                                     }
                                 }
                             }
