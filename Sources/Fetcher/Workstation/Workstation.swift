@@ -118,7 +118,7 @@ public class Workstation: NSObject {
         })
     }
     
-    public func cancel(worker: Worker, completely: Bool = true, completion: @escaping (Bool) -> Void) {
+    public func cancel(worker: Worker, completely: Bool = true, completion: @escaping (Bool) -> Void = {_ in}) {
         worker.progress = .cancelled
         context.remove(worker: worker)
         sessions.all.forEach({
