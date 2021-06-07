@@ -117,7 +117,7 @@ public struct Fetcher {
                                     log(event: "Fetch audio: \(url.absoluteString)", source: .fetcher)
                                     Workstation.shared.perform(work: .download(file: url, session: .background),
                                                                file: .audio(id: id),
-                                                               configuration: .weekly,
+                                                               configuration: StorageKit.Storage.Configuration(time: 0),
                                                                recognizer: UUID(),
                                                                representation: audio.data.item) { result in
                                         switch result {
@@ -150,7 +150,7 @@ public struct Fetcher {
                                         log(event: "Fetch video: \(url.absoluteString)", source: .fetcher)
                                         Workstation.shared.perform(work: .download(file: url, session: .background),
                                                                    file: .video(id: id),
-                                                                   configuration: .weekly,
+                                                                   configuration: StorageKit.Storage.Configuration(time: 0),
                                                                    recognizer: UUID(),
                                                                    representation: try? representation.get().data.item ?? video.data.playlist.medialist.first?.item) { result in
                                             switch result {
