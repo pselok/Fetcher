@@ -179,6 +179,7 @@ extension Workstation: URLSessionDownloadDelegate {
                 break
             }
             let destination = try Storage.Disk.createURL(for: Storage.Folder.path(to: worker.file), in: .caches).fileURL
+            try? FileManager.default.removeItem(at: destination)
             try Storage.Disk.createSubfoldersBeforeCreatingFile(at: destination)
             try FileManager.default.moveItem(at: location, to: destination)
             let meta = Storage.File.Meta(id       : worker.item?.id ?? worker.recognizer.hashValue,
